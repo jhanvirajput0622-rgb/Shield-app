@@ -1,0 +1,22 @@
+{
+  "chat.byokUtilityModelDefault": "copilot",
+  "json.schemas": [
+    {
+      "fileMatch": ["**/package.json"],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "scripts": {
+            "type": "object"
+          },
+          "dependencies": {
+            "type": "object"
+          },
+          "devDependencies": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  ]
+}

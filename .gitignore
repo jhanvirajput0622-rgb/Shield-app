@@ -1,0 +1,25 @@
+
+# Playwright
+node_modules/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
+
+# Environment files — NEVER commit secrets
+.env
+.env.local
+.env.*.local
+server/.env
+
+# Build artefacts
+dist/
+build/
+.expo/
+
+# Credentials
+atlas-credentials.env
+*.pem
+*.key
+*.cert

@@ -1,0 +1,607 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: Shield Mobile Security API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: shield
+    description: Shield security operations
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /shield/status:
+    get:
+      operationId: getProtectionStatus
+      tags: [shield]
+      summary: Get overall protection status
+      responses:
+        "200":
+          description: Protection hub status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProtectionStatus"
+
+  /shield/permissions:
+    get:
+      operationId: getPermissions
+      tags: [shield]
+      summary: Get installed apps with permission risk scores
+      responses:
+        "200":
+          description: List of apps with risk assessment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PermissionsResult"
+
+  /shield/permissions/scan:
+    post:
+      operationId: runPermissionScan
+      tags: [shield]
+      summary: Trigger a new permission scan
+      responses:
+        "200":
+          description: Scan completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PermissionsResult"
+
+  /shield/network:
+    get:
+      operationId: getNetworkStatus
+      tags: [shield]
+      summary: Get current network security status
+      responses:
+        "200":
+          description: Network status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NetworkStatus"
+
+  /shield/vpn/connect:
+    post:
+      operationId: connectVpn
+      tags: [shield]
+      summary: Connect to VPN
+      responses:
+        "200":
+          description: VPN session info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VpnSession"
+
+  /shield/vpn/disconnect:
+    post:
+      operationId: disconnectVpn
+      tags: [shield]
+      summary: Disconnect from VPN
+      responses:
+        "200":
+          description: Disconnected successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DisconnectResult"
+
+  /shield/phishing/log:
+    get:
+      operationId: getPhishingLog
+      tags: [shield]
+      summary: Get phishing activity log (E2E encrypted entries)
+      responses:
+        "200":
+          description: Phishing log entries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PhishingLog"
+    delete:
+      operationId: clearPhishingLog
+      tags: [shield]
+      summary: Clear all phishing log entries
+      responses:
+        "200":
+          description: Log cleared
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClearResult"
+
+  /shield/phishing/check:
+    post:
+      operationId: checkPhishingUrl
+      tags: [shield]
+      summary: Check a URL for phishing threats (privacy-preserving hash check)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PhishingCheckRequest"
+      responses:
+        "200":
+          description: Phishing check result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PhishingCheckResult"
+
+  /shield/device:
+    get:
+      operationId: getDeviceStatus
+      tags: [shield]
+      summary: Get anti-theft device status
+      responses:
+        "200":
+          description: Device status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceStatus"
+
+  /shield/device/locate:
+    post:
+      operationId: locateDevice
+      tags: [shield]
+      summary: Re-fetch device location
+      responses:
+        "200":
+          description: Updated device location
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceStatus"
+
+  /shield/device/lock:
+    post:
+      operationId: lockDevice
+      tags: [shield]
+      summary: Send remote lock command
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LockRequest"
+      responses:
+        "200":
+          description: Lock command queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResult"
+
+  /shield/device/wipe:
+    post:
+      operationId: wipeDevice
+      tags: [shield]
+      summary: Send remote wipe command (requires typed confirmation)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WipeRequest"
+      responses:
+        "200":
+          description: Wipe command queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResult"
+
+  /shield/settings:
+    get:
+      operationId: getShieldSettings
+      tags: [shield]
+      summary: Get user security settings
+      responses:
+        "200":
+          description: Settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShieldSettings"
+    patch:
+      operationId: updateShieldSettings
+      tags: [shield]
+      summary: Update security settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShieldSettingsUpdate"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShieldSettings"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    ProtectionStatus:
+      type: object
+      properties:
+        overall:
+          type: string
+          enum: [protected, action_needed, at_risk]
+        score:
+          type: number
+        permissionsStatus:
+          type: string
+          enum: [safe, warning, danger, critical]
+        networkStatus:
+          type: string
+          enum: [safe, warning, danger, critical]
+        phishingStatus:
+          type: string
+          enum: [safe, warning, danger, critical]
+        antitheftStatus:
+          type: string
+          enum: [safe, warning, danger, critical]
+        lastScanAt:
+          type: string
+        threatsBlocked:
+          type: number
+        appsScanned:
+          type: number
+        linksScanned:
+          type: number
+      required:
+        - overall
+        - score
+        - permissionsStatus
+        - networkStatus
+        - phishingStatus
+        - antitheftStatus
+        - lastScanAt
+        - threatsBlocked
+        - appsScanned
+        - linksScanned
+
+    InstalledApp:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        packageName:
+          type: string
+        category:
+          type: string
+        requestedPermissions:
+          type: array
+          items:
+            type: string
+        riskScore:
+          type: number
+        riskLevel:
+          type: string
+          enum: [safe, low, medium, high, critical]
+        riskReasons:
+          type: array
+          items:
+            type: string
+        lastScannedAt:
+          type: string
+      required:
+        - id
+        - name
+        - packageName
+        - category
+        - requestedPermissions
+        - riskScore
+        - riskLevel
+        - riskReasons
+        - lastScannedAt
+
+    PermissionsResult:
+      type: object
+      properties:
+        apps:
+          type: array
+          items:
+            $ref: "#/components/schemas/InstalledApp"
+        totalApps:
+          type: number
+        highRiskCount:
+          type: number
+        lastScannedAt:
+          type: string
+      required:
+        - apps
+        - totalApps
+        - highRiskCount
+        - lastScannedAt
+
+    NetworkStatus:
+      type: object
+      properties:
+        ssid:
+          type: string
+        isSecured:
+          type: boolean
+        signalStrength:
+          type: number
+        speedMbps:
+          type: number
+        riskLevel:
+          type: string
+          enum: [safe, warning, danger]
+        vpnConnected:
+          type: boolean
+        vpnSession:
+          $ref: "#/components/schemas/VpnSession"
+      required:
+        - ssid
+        - isSecured
+        - signalStrength
+        - speedMbps
+        - riskLevel
+        - vpnConnected
+
+    VpnSession:
+      type: object
+      properties:
+        connected:
+          type: boolean
+        localIp:
+          type: string
+        protocol:
+          type: string
+        serverLocation:
+          type: string
+        encryption:
+          type: string
+        connectedAt:
+          type: string
+      required:
+        - connected
+
+    DisconnectResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+      required:
+        - success
+
+    PhishingLogEntry:
+      type: object
+      properties:
+        id:
+          type: string
+        domain:
+          type: string
+        verdict:
+          type: string
+          enum: [safe, malicious, unknown]
+        threatType:
+          type: string
+        source:
+          type: string
+          enum: [manual_check, auto_scan, sms]
+        checkedAt:
+          type: string
+        encryptedUrl:
+          type: string
+      required:
+        - id
+        - domain
+        - verdict
+        - source
+        - checkedAt
+
+    PhishingLog:
+      type: object
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/PhishingLogEntry"
+        totalScanned:
+          type: number
+        threatsBlocked:
+          type: number
+      required:
+        - entries
+        - totalScanned
+        - threatsBlocked
+
+    PhishingCheckRequest:
+      type: object
+      properties:
+        urlHash:
+          type: string
+          description: SHA-256 hash of the URL (privacy-preserving)
+        encryptedUrl:
+          type: string
+          description: E2E encrypted URL payload
+        domain:
+          type: string
+          description: Domain for display purposes only
+      required:
+        - urlHash
+        - domain
+
+    PhishingCheckResult:
+      type: object
+      properties:
+        verdict:
+          type: string
+          enum: [safe, malicious, unknown]
+        threatType:
+          type: string
+        message:
+          type: string
+        logEntry:
+          $ref: "#/components/schemas/PhishingLogEntry"
+      required:
+        - verdict
+        - message
+
+    DeviceStatus:
+      type: object
+      properties:
+        deviceName:
+          type: string
+        status:
+          type: string
+          enum: [online, offline, lost]
+        batteryPercent:
+          type: number
+        lastSeenAt:
+          type: string
+        locationAvailable:
+          type: boolean
+        latitude:
+          type: number
+        longitude:
+          type: number
+        locationLabel:
+          type: string
+        simStatus:
+          type: string
+        gpsPrecision:
+          type: string
+        networkEncryption:
+          type: string
+        pendingAction:
+          type: string
+          enum: [none, locate, lock, wipe]
+        actionStatus:
+          type: string
+          enum: [idle, queued, delivered, completed, failed]
+      required:
+        - deviceName
+        - status
+        - batteryPercent
+        - lastSeenAt
+        - locationAvailable
+        - pendingAction
+        - actionStatus
+
+    LockRequest:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Custom lock screen message
+      required:
+        - message
+
+    WipeRequest:
+      type: object
+      properties:
+        confirmationPhrase:
+          type: string
+          description: Must match device name exactly
+      required:
+        - confirmationPhrase
+
+    ActionResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        status:
+          type: string
+          enum: [queued, failed]
+        message:
+          type: string
+      required:
+        - success
+        - status
+        - message
+
+    ShieldSettings:
+      type: object
+      properties:
+        webProtectionEnabled:
+          type: boolean
+        vpnAutoConnect:
+          type: boolean
+        killSwitchEnabled:
+          type: boolean
+        notifyHighRiskApps:
+          type: boolean
+        notifyPhishingThreats:
+          type: boolean
+        notifyDeviceUnlock:
+          type: boolean
+        twoFactorEnabled:
+          type: boolean
+        lastLoginAt:
+          type: string
+        accountEmail:
+          type: string
+        linkedDeviceCount:
+          type: number
+      required:
+        - webProtectionEnabled
+        - vpnAutoConnect
+        - killSwitchEnabled
+        - notifyHighRiskApps
+        - notifyPhishingThreats
+        - notifyDeviceUnlock
+        - twoFactorEnabled
+        - accountEmail
+        - linkedDeviceCount
+
+    ClearResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+      required:
+        - success
+
+    ShieldSettingsUpdate:
+      type: object
+      properties:
+        webProtectionEnabled:
+          type: boolean
+        vpnAutoConnect:
+          type: boolean
+        killSwitchEnabled:
+          type: boolean
+        notifyHighRiskApps:
+          type: boolean
+        notifyPhishingThreats:
+          type: boolean
+        notifyDeviceUnlock:
+          type: boolean

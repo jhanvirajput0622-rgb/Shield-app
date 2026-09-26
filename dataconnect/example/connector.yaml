@@ -1,0 +1,61 @@
+connectorId: example
+generate:
+  javascriptSdk:
+    - outputDir: ../../src/dataconnect-generated
+      package: "@dataconnect/generated"
+      packageJsonDir: ../..
+      react: false
+      angular: false
+      clientCache: {}
+    - outputDir: ../../scripts/src/dataconnect-generated
+      package: "@dataconnect/generated"
+      packageJsonDir: ../../scripts
+      react: false
+      angular: false
+      clientCache: {}
+    - outputDir: ../../lib/db/src/dataconnect-generated
+      package: "@dataconnect/generated"
+      packageJsonDir: ../../lib/db
+      react: false
+      angular: false
+      clientCache: {}
+    - outputDir: ../../lib/api-zod/src/dataconnect-generated
+      package: "@dataconnect/generated"
+      packageJsonDir: ../../lib/api-zod
+      react: false
+      angular: false
+      clientCache: {}
+    - outputDir: ../../lib/api-spec/src/dataconnect-generated
+      package: "@dataconnect/generated"
+      packageJsonDir: ../../lib/api-spec
+      react: false
+      angular: false
+      clientCache: {}
+    - outputDir: ../../lib/api-clients-react/src/dataconnect-generated
+      package: "@dataconnect/generated"
+      packageJsonDir: ../../lib/api-clients-react
+      react: false
+      angular: false
+      clientCache: {}
+    - outputDir: ../../artifacts/mockup-sandbox/src/dataconnect-generated
+      package: "@dataconnect/generated"
+      packageJsonDir: ../../artifacts/mockup-sandbox
+      react: true
+      angular: false
+      clientCache: {}
+    - outputDir: ../../artifacts/api-server/src/dataconnect-generated
+      package: "@dataconnect/generated"
+      packageJsonDir: ../../artifacts/api-server
+      react: false
+      angular: false
+      clientCache: {}
+    - outputDir: ../../artifacts/mobile/src/dataconnect-generated
+      package: "@dataconnect/generated"
+      packageJsonDir: ../../artifacts/mobile
+      react: true
+      angular: false
+      clientCache: {}
+  adminNodeSdk:
+    - outputDir: ../../server/src/dataconnect-admin-generated
+      package: "@dataconnect/admin-generated"
+      packageJsonDir: ../../server

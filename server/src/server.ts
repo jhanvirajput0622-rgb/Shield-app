@@ -4,16 +4,12 @@ import helmet from "helmet";
 import cors from "cors";
 import compression from "compression";
 
-import {
-  connectDatabase,
-  disconnectDatabase,
-  reconnectInBackground,
-} from "./config/database";
 import { logger } from "./utils/logger";
 import { requestLogger } from "./middleware/requestLogger.middleware";
 import { generalLimiter } from "./middleware/rateLimiter.middleware";
 import { errorHandler } from "./middleware/errorHandler.middleware";
 import { ApiError } from "./utils/ApiError";
+import { connectFirestore, getFirestoreStatus } from "./config/firestore";
 
 // ── Route imports ─────────────────────────────────────────────────────────────
 import authRoutes from "./routes/auth.routes";
@@ -97,19 +93,16 @@ app.get("/healthz", (_req: Request, res: Response) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-// Full health check including MongoDB connectivity — spec: GET /api/health
+// Full health check including Firestore connectivity — spec: GET /api/health
 app.get("/api/health", (_req: Request, res: Response) => {
-  const { getDbStatus, getDbError } = require("./config/database") as typeof import("./config/database");
-  const status = getDbStatus();
-  const dbConnected = status === "connected";
-  const dbError = getDbError();
+  const firestoreStatus = getFirestoreStatus();
+  const firestoreConnected = firestoreStatus === "connected";
 
-  res.status(dbConnected ? 200 : 503).json({
-    success: dbConnected,
+  res.status(firestoreConnected ? 200 : 503).json({
+    success: firestoreConnected,
     service: "Shield API",
-    database: "MongoDB",
-    databaseStatus: status,
-    ...(dbError && !dbConnected ? { databaseError: dbError } : {}),
+    database: "Firestore",
+    databaseStatus: firestoreStatus,
     timestamp: new Date().toISOString(),
     version: process.env.npm_package_version ?? "1.0.0",
   });
@@ -171,7 +164,7 @@ const PORT = Number(process.env.PORT ?? 3001);
 
 async function start(): Promise<void> {
   // Start listening FIRST so liveness/health endpoints are always reachable,
-  // even while MongoDB is warming up or temporarily unreachable. This is what
+  // even while Firestore is warming up or temporarily unreachable. This is what
   // lets the mobile app degrade gracefully ("Database unavailable — showing
   // cached data") instead of failing with "Unable to connect to Shield API".
   const server = app.listen(PORT, "0.0.0.0", () => {
@@ -183,7 +176,6 @@ async function start(): Promise<void> {
   const shutdown = async (signal: string) => {
     logger.info(`Received ${signal} — shutting down gracefully`);
     server.close(async () => {
-      await disconnectDatabase();
       logger.info("Server closed");
       process.exit(0);
     });
@@ -202,12 +194,8 @@ async function start(): Promise<void> {
     process.exit(1);
   });
 
-  // Connect to MongoDB in the background. If it fails, keep the API up,
-  // surface the degraded database status via /api/health, and keep retrying.
-  void connectDatabase().catch((err: Error) => {
-    logger.error(`Initial MongoDB connection failed: ${err.message}`);
-    logger.info("API is still listening — health endpoints remain available.");
-    reconnectInBackground();
+  void connectFirestore().catch((err: Error) => {
+    logger.warn(`Firestore connection failed: ${err.message}`);
   });
 }
 

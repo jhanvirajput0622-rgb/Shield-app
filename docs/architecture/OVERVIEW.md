@@ -50,12 +50,12 @@
 │   /api/vpn-sessions    VPN session history                  │
 │   /api/web-checks      Web check history                    │
 │   /api/user-settings   Key-value settings store             │
-│   /api/health          MongoDB health probe                 │
+│   /api/health          Firestore health probe                │
 └──────────────────────────┬──────────────────────────────────┘
-                           │ Mongoose ODM
+                           │ Firestore Admin SDK
 ┌──────────────────────────▼──────────────────────────────────┐
-│                    MONGODB ATLAS                             │
-│                   database: "shield"                        │
+│                    FIREBASE FIRESTORE                        │
+│                   project: "shield-419e1"                   │
 │                                                             │
 │  users                devices             refresh_tokens    │
 │  settings             vpn_sessions        password_reset_*  │
@@ -97,7 +97,7 @@
 11. Risk engine scores each app:
     - known dangerous permission combinations
     - category heuristics
-    - Mongoose AppPermissionScan.create()
+     - Firestore AppPermissionScan.create()
       ↓
 12. res.json({ apps, totalApps, highRiskCount, lastScannedAt })
       ↓
@@ -120,7 +120,7 @@ Shield-app/
 ├── artifacts/
 │   └── mobile/                Expo React Native app
 │
-├── server/                    Express + Mongoose backend
+├── server/                    Express + Firestore backend
 │
 ├── lib/
 │   ├── api-clients-react/     Orval-generated TanStack Query hooks
@@ -147,9 +147,9 @@ Shield-app/
 | Authentication | JWT HS256, 15m access + 30d refresh with rotation |
 | Token storage | iOS Keychain / Android Keystore via `expo-secure-store` |
 | Password storage | bcrypt cost 12 — never stored as plaintext |
-| Refresh token storage | SHA-256 hash in MongoDB — raw token never persisted server-side |
+| Refresh token storage | SHA-256 hash in Firestore — raw token never persisted server-side |
 | Replay attack detection | Revoked token reuse → all sessions for that user are invalidated |
-| Input validation | Zod schemas on all request bodies; Mongoose schema validation |
+| Input validation | Zod schemas on all request bodies; Firestore document contracts |
 | Authorization | `req.userId` always from JWT, never from request body |
 | Data isolation | Every query includes `{ userId: req.userId }` — users cannot access others' data |
 | Audit logging | AES-256-GCM encrypted details stored for security events |
@@ -162,14 +162,14 @@ Shield-app/
 - Passwords or password hashes
 - Access tokens or refresh tokens
 - Private keys
-- Raw MongoDB URIs (only error messages, not the full connection string)
+- Service-account credentials or Firestore connection secrets
 - Full URL content (only domain + hash)
 
 ---
 
 ## Key architectural decisions
 
-**1. No direct MongoDB from mobile.** The mobile app uses only the REST API. MongoDB credentials never appear in the JS bundle.
+**1. No direct Firestore from mobile.** The mobile app uses only the REST API. Firestore service credentials never appear in the JS bundle.
 
 **2. Dual API client layers.** The generated `@workspace/api-client-react` hooks (from Orval + OpenAPI spec) are used where the spec covers the endpoint. Custom hooks using `apiFetch` directly are used for endpoints not in the spec (dashboard, anti-theft, phishing). This provides type safety on generated paths while keeping flexibility on custom ones.
 

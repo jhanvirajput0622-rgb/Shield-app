@@ -97,6 +97,33 @@ export function useGoogleLogin() {
   });
 }
 
+export function useRequestEmailOtp() {
+  return useMutation({
+    mutationFn: async (input: { email: string; name?: string }) => {
+      return apiFetch<{ success: boolean; message: string; resendAfterSeconds: number }>(
+        "/api/auth/email-otp/request",
+        { method: "POST", body: input, skipAuth: true }
+      );
+    },
+  });
+}
+
+export function useVerifyEmailOtp() {
+  return useMutation({
+    mutationFn: async (input: { email: string; code: string; authenticatorOtp?: string }) => {
+      const res = await apiFetch<AuthResponse>("/api/auth/email-otp/verify", {
+        method: "POST",
+        body: input,
+        skipAuth: true,
+      });
+      await storeToken(res.data.accessToken ?? res.data.token);
+      await storeRefreshToken(res.data.refreshToken);
+      await setRememberMe(true);
+      return res.data;
+    },
+  });
+}
+
 export function useSetup2FA() {
   return useMutation({
     mutationFn: async () => {

@@ -2,7 +2,6 @@ import { Request, Response } from "express";
 import { networkService } from "../services/network.service";
 import { VpnSession, IVpnSession } from "../models/VpnSession";
 import { ApiError } from "../utils/ApiError";
-import mongoose from "mongoose";
 
 function sessionView(s: IVpnSession) {
   return {
@@ -38,10 +37,6 @@ export const vpnController = {
   // ── PATCH /api/vpn/session/:id  (disconnect / update) ────────────────────
   async updateSession(req: Request, res: Response): Promise<void> {
     const { id } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      throw ApiError.badRequest("Invalid session id");
-    }
-
     const { connectionStatus, bytesUploaded, bytesDownloaded } = req.body as {
       connectionStatus?: string;
       bytesUploaded?: number;

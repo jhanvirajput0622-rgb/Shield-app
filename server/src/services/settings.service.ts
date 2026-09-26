@@ -1,4 +1,3 @@
-import mongoose from "mongoose";
 import { Settings, ISettings } from "../models/Settings";
 import { User } from "../models/User";
 import { Device } from "../models/Device";
@@ -18,7 +17,7 @@ export interface FullSettings {
 
 export class SettingsService {
   /** Upsert: create settings row if it doesn't exist yet */
-  private async getOrCreate(userId: mongoose.Types.ObjectId): Promise<ISettings> {
+  private async getOrCreate(userId: string): Promise<ISettings> {
     let settings = await Settings.findOne({ userId });
     if (!settings) {
       settings = await Settings.create({ userId });
@@ -26,7 +25,7 @@ export class SettingsService {
     return settings;
   }
 
-  async getSettings(userId: mongoose.Types.ObjectId): Promise<FullSettings> {
+  async getSettings(userId: string): Promise<FullSettings> {
     const [settings, user, linkedDeviceCount] = await Promise.all([
       this.getOrCreate(userId),
       User.findById(userId).select("email twoFactorEnabled lastLoginAt"),
@@ -48,7 +47,7 @@ export class SettingsService {
   }
 
   async updateSettings(
-    userId: mongoose.Types.ObjectId,
+    userId: string,
     patch: Partial<Pick<
       ISettings,
       | "webProtectionEnabled"

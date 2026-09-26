@@ -1,16 +1,11 @@
 {
   "expo": {
     "name": "Shield",
-    "slug": "mobile",
+    "slug": "shield-app",
     "version": "1.0.0",
     "sdkVersion": "57.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "splash": {
-      "image": "./assets/images/icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#FFFFFF"
-    },
     "scheme": "shield",
     "userInterfaceStyle": "dark",
     "ios": {
@@ -33,7 +28,8 @@
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE",
         "android.permission.RECORD_AUDIO"
-      ]
+      ],
+      "package": "com.jbaraiya2204.mobile"
     },
     "web": {
       "favicon": "./assets/images/icon.png"
@@ -70,7 +66,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "04053d7e-3b49-4330-8f3e-493d30e7c654"
+        "projectId": "05ae3d84-d7d2-454d-ad14-2b42819c4b43"
       }
     },
     "owner": "jbaraiya2204"

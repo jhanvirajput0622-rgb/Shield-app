@@ -11,9 +11,11 @@ Shield uses a **JWT access token + rotating refresh token** strategy.
 ```
 Mobile App
    │
-   ├─ POST /api/auth/register ──► bcrypt(password, 12) → User in MongoDB
+   ├─ POST /api/auth/register ──► bcrypt(password, 12) → User in Firestore
    ├─ POST /api/auth/login ──────► verify hash → issue access + refresh token
    ├─ POST /api/auth/google ─────► verify Google ID token → sign in / auto-register
+   ├─ POST /api/auth/email-otp/request ─► email a one-time code
+   ├─ POST /api/auth/email-otp/verify ──► verify code → issue access + refresh token
    ├─ GET  /api/auth/me ─────────► validate JWT → return user profile
    ├─ POST /api/auth/refresh ────► rotate refresh token → new access token
    ├─ POST /api/auth/logout ─────► revoke refresh token
@@ -40,7 +42,7 @@ Mobile App
 - **TTL:** `JWT_REFRESH_EXPIRES_IN` (default `30d`)
 - **Storage on device:** `expo-secure-store` key `shield_refresh_token`
 - **Storage on server:** SHA-256 hash stored in `refresh_tokens` collection — the raw token is never persisted server-side
-- **MongoDB TTL index:** expired tokens auto-deleted by MongoDB after expiry
+- **Scheduled cleanup:** expired token documents are removed by a scheduled Firestore cleanup task
 
 ### Token rotation (security)
 Every `POST /api/auth/refresh` call:
@@ -164,6 +166,15 @@ Shield supports TOTP-based 2FA using the `otplib` library (RFC 6238 / TOTP).
 
 Server-side ID token verification requires `GOOGLE_CLIENT_ID` in `server/.env`.
 
+### Email one-time code
+1. The mobile app posts `{ email, name? }` to `POST /api/auth/email-otp/request`.
+2. The server generates a cryptographically random 6-digit code, allows one send per email every 60 seconds, and emails it through Resend. The API response does not reveal whether an account exists.
+3. The challenge is stored as an HMAC-SHA256 hash, expires after 10 minutes, and permits at most five verification attempts. Firestore cleanup removes expired challenge documents through a scheduled task.
+4. The app posts `{ email, code, authenticatorOtp? }` to `POST /api/auth/email-otp/verify`. Successful verification signs in an existing user or creates a new account, then returns the same rotating access/refresh token pair as password and Google auth.
+5. Users with TOTP enabled must also provide their authenticator code; email OTP cannot bypass existing MFA.
+
+Configure `RESEND_API_KEY`, a Resend-verified `EMAIL_FROM`, and a random 32-byte `OTP_HASH_SECRET` in `server/.env`. The mobile client needs no email-provider secret. Both OTP routes use the existing auth IP rate limiter in addition to the per-email resend cooldown and attempt limit.
+
 ---
 
 ## Forgot password flow
@@ -206,10 +217,10 @@ Response: { success: true, message: "Password has been successfully reset" }
 
 `authLimiter`: 20 requests per 15-minute window per IP (configured in `server/.env` as `AUTH_RATE_LIMIT_MAX`).
 
-Applies to: `/register`, `/login`, `/refresh`, `/forgot-password`, `/reset-password`.
+Applies to: `/register`, `/login`, `/google`, `/email-otp/request`, `/email-otp/verify`, `/refresh`, `/forgot-password`, `/reset-password`.
 
 ---
 
 ## Roles
 
-The `User` model has a `role` field: `"user"` | `"admin"`. Currently all registered users receive the `"user"` role. Admin functionality is reserved for future implementation. Role is stored in MongoDB but not included in the JWT payload — it is always re-read from the database on protected admin routes.
+The `User` model has a `role` field: `"user"` | `"admin"`. Currently all registered users receive the `"user"` role. Admin functionality is reserved for future implementation. Role is stored in Firestore but not included in the JWT payload — it is always re-read from the database on protected admin routes.

@@ -1,6 +1,6 @@
 /**
  * Polls GET /api/health every 30 seconds.
- * Returns whether the backend + MongoDB are reachable.
+ * Returns whether the backend + Firestore are reachable.
  */
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/apiClient";

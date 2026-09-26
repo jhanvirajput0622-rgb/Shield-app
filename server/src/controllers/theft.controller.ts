@@ -10,7 +10,6 @@
  *   - Location history is stored in DeviceLocation (30-day TTL).
  */
 import { Request, Response } from "express";
-import mongoose from "mongoose";
 import { Device } from "../models/Device";
 import { TheftCommand } from "../models/TheftCommand";
 import { DeviceLocation } from "../models/DeviceLocation";
@@ -19,7 +18,7 @@ import { ApiError } from "../utils/ApiError";
 import { LockDeviceBody, WipeDeviceBody } from "../validators/antitheft.validator";
 
 /** Find the primary device for the authed user, throw 404 if none */
-async function requirePrimaryDevice(userId: mongoose.Types.ObjectId) {
+async function requirePrimaryDevice(userId: string) {
   const device = await Device.findOne({ userId }).sort({ lastSeenAt: -1 });
   if (!device) throw ApiError.notFound("Device");
   return device;
@@ -222,10 +221,6 @@ export const theftController = {
   // ── GET /api/theft/location/:deviceId ─────────────────────────────────────
   async getLocation(req: Request, res: Response): Promise<void> {
     const { deviceId } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(deviceId)) {
-      throw ApiError.badRequest("Invalid device id");
-    }
-
     // Verify ownership
     const device = await Device.findOne({
       _id: deviceId,

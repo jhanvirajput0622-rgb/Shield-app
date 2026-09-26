@@ -31,7 +31,7 @@ All error responses follow this shape:
 | `422` | Unprocessable | Semantic validation failure |
 | `429` | Too Many Requests | Rate limit exceeded |
 | `500` | Internal Server Error | Unexpected server error |
-| `503` | Service Unavailable | MongoDB disconnected |
+| `503` | Service Unavailable | Firestore disconnected or not configured |
 
 ---
 
@@ -88,7 +88,7 @@ Auth endpoints: 20 req/15min per IP. Destructive endpoints (lock/wipe): 5 req/ho
 
 ---
 
-### MongoDB duplicate key (409)
+### Firestore conflict (409)
 
 ```json
 {
@@ -141,7 +141,7 @@ When `apiFetch` receives a 401:
 **Root causes (in order of likelihood):**
 1. The SecureStore key crash (above) prevents the auth token from being read → every API call fails with a network error
 2. `EXPO_PUBLIC_API_URL` is set to `localhost` on a physical device → resolves to the phone itself
-3. The server is not running or MongoDB is disconnected
+3. The server is not running or Firestore is disconnected
 4. CORS is blocking the request (add your Expo Go origin to `CORS_ORIGINS`)
 
 ---

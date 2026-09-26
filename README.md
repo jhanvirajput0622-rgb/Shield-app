@@ -8,13 +8,13 @@ _Replace the heading above with the project's name, and this line with one sente
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- Required env: `MONGODB_URI` — MongoDB connection string
+- Required env: `FIREBASE_PROJECT_ID` and Google Application Default Credentials
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
 - API: Express 5
-- DB: MongoDB Atlas + Mongoose
+- DB: Firebase Firestore via Firebase Admin SDK
 - Validation: Zod (`zod/v4`)
 - API codegen: Orval (from OpenAPI spec)
 - Build: esbuild (CJS bundle)

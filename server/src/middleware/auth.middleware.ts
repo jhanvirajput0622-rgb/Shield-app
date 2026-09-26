@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import mongoose from "mongoose";
 import { ApiError } from "../utils/ApiError";
 
 // ─── Augment Express Request ──────────────────────────────────────────────────
@@ -8,14 +7,14 @@ import { ApiError } from "../utils/ApiError";
 declare global {
   namespace Express {
     interface Request {
-      userId: mongoose.Types.ObjectId;
+      userId: string;
       userEmail: string;
     }
   }
 }
 
 interface JwtPayload {
-  sub: string;   // MongoDB ObjectId as string
+  sub: string;   // Firestore document ID
   email: string;
   iat: number;
   exp: number;
@@ -44,7 +43,7 @@ export function authenticate(
 
   try {
     const payload = jwt.verify(token, secret) as JwtPayload;
-    req.userId = new mongoose.Types.ObjectId(payload.sub);
+    req.userId = payload.sub;
     req.userEmail = payload.email;
     next();
   } catch (err) {

@@ -11,7 +11,7 @@ Complete local development setup from zero to a running app.
 | Node.js | ≥ 18.0.0 | https://nodejs.org |
 | pnpm | ≥ 11.0 | `npm i -g pnpm` |
 | Expo Go (mobile) | Latest | iOS App Store / Google Play |
-| MongoDB Atlas account | Free tier | https://cloud.mongodb.com |
+| Firebase project | Free tier available | https://console.firebase.google.com |
 
 ---
 
@@ -36,10 +36,10 @@ cp server/.env.example server/.env
 Open `server/.env` and fill in the required values:
 
 ```env
-# ── MongoDB ───────────────────────────────────────────────────────────────────
-# Get this from your Atlas cluster → Connect → Drivers
-MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/shield?retryWrites=true&w=majority
-MONGODB_DATABASE_NAME=shield
+# ── Firebase Firestore ────────────────────────────────────────────────────────
+FIREBASE_PROJECT_ID=shield-419e1
+# Use Google Application Default Credentials locally, or provide a service account path.
+# GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/firebase-service-account.json
 
 # ── JWT ───────────────────────────────────────────────────────────────────────
 # Generate a secure secret:
@@ -68,12 +68,19 @@ RATE_LIMIT_MAX_REQUESTS=100
 AUTH_RATE_LIMIT_MAX=20
 ```
 
-### MongoDB Atlas setup
+### Firebase setup
 
-1. Create a free cluster at https://cloud.mongodb.com
-2. Create a database user with `readWrite` on the `shield` database
-3. Add your IP to the Network Access allowlist (or `0.0.0.0/0` for dev)
-4. Copy the connection string into `MONGODB_URI`
+1. Create or select the Firebase project in the Firebase Console.
+2. Enable Cloud Firestore in production or test mode.
+3. Authenticate local development with Google Application Default Credentials.
+4. Set `FIREBASE_PROJECT_ID` in `server/.env`.
+
+Initialize the application collections after credentials are configured:
+
+```bash
+cd server
+npm run db:bootstrap
+```
 
 ---
 
@@ -96,9 +103,16 @@ nano artifacts/mobile/.env
 #   Same WiFi network     : http://192.168.1.42:3001
 #   Replit/tunnel         : https://<tunnel-url>
 EXPO_PUBLIC_API_URL=http://192.168.1.42:3001
+
+# Optional Google Sign-In (IDs are public client IDs, not secrets)
+EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=<Google Web client ID>
+EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=<Google iOS client ID>
+EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID=<Google Android client ID>
 ```
 
-> **Never** put `MONGODB_URI`, `JWT_SECRET`, or any server secret here. Expo inlines `EXPO_PUBLIC_*` vars into the JS bundle — they are visible to anyone who decompiles the app.
+> **Never** put `GOOGLE_APPLICATION_CREDENTIALS`, service-account JSON, `JWT_SECRET`, or any server secret here. Expo inlines `EXPO_PUBLIC_*` vars into the JS bundle — they are visible to anyone who decompiles the app.
+
+For Google sign-in, also set the same Web client ID as `GOOGLE_CLIENT_ID` in `server/.env`. For email-code sign-in, configure `RESEND_API_KEY`, `EMAIL_FROM` (a sender on a verified Resend domain), and a random 32-byte `OTP_HASH_SECRET` there. Generate the OTP secret with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`; never put these server values in the mobile `.env`.
 
 ---
 
@@ -111,8 +125,7 @@ pnpm dev
 
 Expected output:
 ```
-MongoDB connection attempt 1/5…
-✅ MongoDB connected — database: "shield"
+Firestore connectivity check started
 Shield API listening on http://0.0.0.0:3001
 Environment: development
 ```
@@ -120,7 +133,7 @@ Environment: development
 Verify the server is healthy:
 ```bash
 curl http://localhost:3001/api/health
-# {"success":true,"databaseStatus":"connected",...}
+# {"success":true,"database":"Firestore","databaseStatus":"connected",...}
 ```
 
 ---
@@ -185,7 +198,7 @@ cd artifacts/mobile && npx expo start --android
 2. Tap **Create Account** → fill in name, email, phone (optional), password
 3. Agree to Terms → **Create Account**
 4. Onboarding slides appear → tap **Get Started**
-5. Dashboard loads with live data from MongoDB
+5. Dashboard loads with live data from Firestore
 
 ---
 
@@ -211,11 +224,11 @@ This was a known bug (keys contained `@` and `/`). It was fixed in `lib/secureSt
 - iOS Simulator: **Device → Erase All Content and Settings**
 - Android Emulator: **Cold Boot** the AVD
 
-### MongoDB connection fails
+### Firestore connection fails
 
-1. Check `MONGODB_URI` in `server/.env` — no trailing spaces, correct password
-2. Atlas → Network Access → confirm your IP is whitelisted
-3. Atlas → Database Access → confirm the user has `readWrite` on `shield`
+1. Check `FIREBASE_PROJECT_ID` in `server/.env`.
+2. Confirm Application Default Credentials are available, or `GOOGLE_APPLICATION_CREDENTIALS` points to a valid service-account JSON file.
+3. Confirm Cloud Firestore is enabled for the Firebase project.
 
 ### TypeScript errors after `pnpm install`
 
@@ -236,8 +249,8 @@ Most common causes:
 
 | Variable | Required | Description |
 |---|---|---|
-| `MONGODB_URI` | ✅ | MongoDB Atlas connection string |
-| `MONGODB_DATABASE_NAME` | ✅ | Database name (`shield`) |
+| `FIREBASE_PROJECT_ID` | ✅ | Firebase project ID |
+| `GOOGLE_APPLICATION_CREDENTIALS` | optional | Path to a service-account JSON file, or use Google Application Default Credentials |
 | `JWT_SECRET` | ✅ | 64-byte hex string for signing JWTs |
 | `JWT_EXPIRES_IN` | ✅ | Access token TTL (e.g. `15m`) |
 | `JWT_REFRESH_EXPIRES_IN` | ✅ | Refresh token TTL (e.g. `30d`) |
@@ -245,9 +258,16 @@ Most common causes:
 | `PORT` | optional | Server port (default `3001`) |
 | `CORS_ORIGINS` | optional | Comma-separated allowed origins |
 | `LOG_LEVEL` | optional | `debug` / `info` / `warn` / `error` |
+| `GOOGLE_CLIENT_ID` | optional | Google Web OAuth client ID used to verify ID tokens |
+| `RESEND_API_KEY` | required for email OTP | Resend API key; keep server-side |
+| `EMAIL_FROM` | required for email OTP | Sender address on your verified Resend domain |
+| `OTP_HASH_SECRET` | required for email OTP | Random 32-byte secret for hashing email challenges |
 
 ### `artifacts/mobile/.env` (safe to commit — no secrets)
 
 | Variable | Required | Description |
 |---|---|---|
 | `EXPO_PUBLIC_API_URL` | ✅ | Backend URL (LAN IP or tunnel) |
+| `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` | optional | Google Web OAuth client ID |
+| `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` | optional | Google iOS OAuth client ID |
+| `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` | optional | Google Android OAuth client ID |

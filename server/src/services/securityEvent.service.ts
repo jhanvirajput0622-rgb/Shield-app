@@ -1,9 +1,8 @@
-import mongoose from "mongoose";
 import { SecurityEvent, ISecurityEvent } from "../models/SecurityEvent";
 
 export class SecurityEventService {
   async getRecentEvents(
-    userId: mongoose.Types.ObjectId,
+    userId: string,
     limit = 10
   ): Promise<ISecurityEvent[]> {
     return SecurityEvent.find({ userId })
@@ -11,13 +10,13 @@ export class SecurityEventService {
       .limit(limit) as unknown as Promise<ISecurityEvent[]>;
   }
 
-  async getBlockedThreatsCount(userId: mongoose.Types.ObjectId): Promise<number> {
+  async getBlockedThreatsCount(userId: string): Promise<number> {
     return SecurityEvent.countDocuments({ userId, isBlocked: true });
   }
 
   async emit(
-    userId: mongoose.Types.ObjectId,
-    deviceId: mongoose.Types.ObjectId | null,
+    userId: string,
+    deviceId: string | null,
     eventType: string,
     severity: ISecurityEvent["severity"],
     title: string,

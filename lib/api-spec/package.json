@@ -8,5 +8,8 @@
   },
   "devDependencies": {
     "orval": "^8.21.0"
+  },
+  "dependencies": {
+    "@dataconnect/generated": "file:src/dataconnect-generated"
   }
 }

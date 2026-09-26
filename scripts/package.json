@@ -13,5 +13,8 @@
   "devDependencies": {
     "@types/node": "^25.3.3",
     "tsx": "^4.21.0"
+  },
+  "dependencies": {
+    "@dataconnect/generated": "file:src/dataconnect-generated"
   }
 }

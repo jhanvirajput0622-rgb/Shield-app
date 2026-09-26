@@ -9,7 +9,6 @@
  */
 
 import crypto from "crypto";
-import mongoose from "mongoose";
 import { AuditLog, AuditAction, IAuditLog } from "../models/AuditLog";
 import { logger } from "../utils/logger";
 
@@ -51,13 +50,13 @@ function encryptDetails(plaintext: string): string {
 export interface AuditContext {
   ipAddress?: string;
   userAgent?: string;
-  deviceId?: mongoose.Types.ObjectId | null;
+  deviceId?: string | null;
   metadata?: Record<string, unknown>;
 }
 
 export class AuditService {
   async log(
-    userId: mongoose.Types.ObjectId,
+    userId: string,
     action: AuditAction,
     summary: string,
     context: AuditContext = {}
@@ -94,7 +93,7 @@ export class AuditService {
   }
 
   async getRecentLogs(
-    userId: mongoose.Types.ObjectId,
+    userId: string,
     limit = 50
   ): Promise<IAuditLog[]> {
     return AuditLog.find({ userId })
@@ -104,8 +103,8 @@ export class AuditService {
   }
 
   async getLogsForDevice(
-    deviceId: mongoose.Types.ObjectId,
-    userId: mongoose.Types.ObjectId,
+    deviceId: string,
+    userId: string,
     limit = 50
   ): Promise<IAuditLog[]> {
     return AuditLog.find({ deviceId, userId })

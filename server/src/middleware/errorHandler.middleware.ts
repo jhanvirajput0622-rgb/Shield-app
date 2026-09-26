@@ -50,7 +50,7 @@ export function errorHandler(
     return;
   }
 
-  // ── Mongoose duplicate-key error ────────────────────────────────────────────
+  // ── Firestore conflict/error handling ───────────────────────────────────────
   if (
     typeof err === "object" &&
     err !== null &&

@@ -41,6 +41,21 @@ export const googleAuthSchema = z.object({
   }),
 });
 
+export const requestEmailOtpSchema = z.object({
+  body: z.object({
+    email: z.string().email("Invalid email address").toLowerCase(),
+    name: z.string().trim().max(128).optional(),
+  }),
+});
+
+export const verifyEmailOtpSchema = z.object({
+  body: z.object({
+    email: z.string().email("Invalid email address").toLowerCase(),
+    code: z.string().regex(/^\d{6}$/, "Enter the 6-digit code"),
+    authenticatorOtp: z.string().regex(/^\d{6}$/).optional(),
+  }),
+});
+
 export const refreshSchema = z.object({
   body: z.object({
     refreshToken: z.string().min(1, "refreshToken is required"),
@@ -92,6 +107,8 @@ export const disable2FASchema = z.object({
 export type RegisterBody = z.infer<typeof registerSchema>["body"];
 export type LoginBody = z.infer<typeof loginSchema>["body"];
 export type GoogleAuthBody = z.infer<typeof googleAuthSchema>["body"];
+export type RequestEmailOtpBody = z.infer<typeof requestEmailOtpSchema>["body"];
+export type VerifyEmailOtpBody = z.infer<typeof verifyEmailOtpSchema>["body"];
 export type RefreshBody = z.infer<typeof refreshSchema>["body"];
 export type LogoutBody = z.infer<typeof logoutSchema>["body"];
 export type ForgotPasswordBody = z.infer<typeof forgotPasswordSchema>["body"];

@@ -1,12 +1,12 @@
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import mongoose from "mongoose";
 import { OAuth2Client } from "google-auth-library";
 import { User, IUser } from "../models/User";
 import { Settings } from "../models/Settings";
 import { Device } from "../models/Device";
 import { RefreshToken, generateRawToken, hashRefreshToken } from "../models/RefreshToken";
 import { PasswordResetToken, generateResetToken, hashResetToken } from "../models/PasswordResetToken";
+import { EmailOtpChallenge } from "../models/EmailOtpChallenge";
 import { ApiError } from "../utils/ApiError";
 import { signAccessToken } from "../middleware/auth.middleware";
 import { logger } from "../utils/logger";
@@ -43,10 +43,140 @@ export interface AuthResult {
 // ─── Service ──────────────────────────────────────────────────────────────────
 
 export class UserService {
+  private hashEmailOtp(email: string, code: string): string {
+    const secret = process.env.OTP_HASH_SECRET;
+    if (!secret || secret.length < 32) {
+      throw ApiError.internal("Email verification is not configured");
+    }
+    return crypto.createHmac("sha256", secret).update(`${email}:${code}`).digest("hex");
+  }
+
+  private async sendEmailOtp(email: string, code: string): Promise<void> {
+    const apiKey = process.env.RESEND_API_KEY;
+    const from = process.env.EMAIL_FROM;
+    if (!apiKey || !from) {
+      throw ApiError.internal("Email verification is not configured");
+    }
+
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from,
+        to: [email],
+        subject: "Your Shield verification code",
+        text: `Your Shield verification code is ${code}. It expires in 10 minutes. If you did not request this, you can ignore this email.`,
+      }),
+    });
+    if (!response.ok) {
+      logger.error(`Email OTP delivery failed with status ${response.status}`);
+      throw ApiError.internal("Unable to send verification email. Please try again later.");
+    }
+  }
+
+  async requestEmailOtp(email: string, name?: string): Promise<void> {
+    const normalizedEmail = email.toLowerCase().trim();
+    const now = new Date();
+    let challenge = await EmailOtpChallenge.findOne({ email: normalizedEmail });
+    if (challenge && now.getTime() - challenge.lastSentAt.getTime() < 60_000) {
+      throw ApiError.tooManyRequests("Please wait before requesting another code");
+    }
+
+    const code = crypto.randomInt(100_000, 1_000_000).toString();
+    const challengeData = {
+      codeHash: this.hashEmailOtp(normalizedEmail, code),
+      name: name?.trim() ?? challenge?.name ?? "",
+      expiresAt: new Date(now.getTime() + 10 * 60_000),
+      lastSentAt: now,
+      attempts: 0,
+    };
+
+    if (challenge) {
+      await EmailOtpChallenge.updateOne({ _id: challenge._id }, { $set: challengeData });
+      Object.assign(challenge, challengeData);
+    } else {
+      challenge = await EmailOtpChallenge.create({ email: normalizedEmail, ...challengeData });
+    }
+
+    try {
+      await this.sendEmailOtp(normalizedEmail, code);
+    } catch (error) {
+      await EmailOtpChallenge.deleteOne({ email: normalizedEmail, codeHash: challengeData.codeHash });
+      throw error;
+    }
+  }
+
+  async verifyEmailOtp(
+    email: string,
+    code: string,
+    authenticatorOtp?: string
+  ): Promise<AuthResult & { isNewUser: boolean }> {
+    const normalizedEmail = email.toLowerCase().trim();
+    const challenge = await EmailOtpChallenge.findOne({ email: normalizedEmail }).select("+codeHash");
+    if (!challenge || challenge.expiresAt <= new Date() || challenge.attempts >= 5) {
+      throw ApiError.unauthorized("Invalid or expired verification code");
+    }
+
+    const expected = Buffer.from(challenge.codeHash, "hex");
+    const actual = Buffer.from(this.hashEmailOtp(normalizedEmail, code), "hex");
+    if (expected.length !== actual.length || !crypto.timingSafeEqual(expected, actual)) {
+      challenge.attempts += 1;
+      await EmailOtpChallenge.updateOne({ _id: challenge._id }, { $set: { attempts: challenge.attempts } });
+      throw ApiError.unauthorized("Invalid or expired verification code");
+    }
+
+    let user = await User.findOne({ email: normalizedEmail }).select("+twoFactorSecret");
+    if (user?.twoFactorEnabled) {
+      if (!authenticatorOtp) {
+        throw new ApiError(401, "MFA_REQUIRED");
+      }
+      if (!user.twoFactorSecret || !authenticator.verify({ token: authenticatorOtp, secret: user.twoFactorSecret })) {
+        challenge.attempts += 1;
+        await EmailOtpChallenge.updateOne({ _id: challenge._id }, { $set: { attempts: challenge.attempts } });
+        throw ApiError.unauthorized("Invalid authentication code");
+      }
+    }
+
+    let isNewUser = false;
+    if (!user) {
+      const resolvedName = challenge.name || normalizedEmail.split("@")[0];
+      const passwordHash = await bcrypt.hash(crypto.randomBytes(32).toString("hex"), 12);
+      user = await User.create({
+        email: normalizedEmail,
+        passwordHash,
+        displayName: resolvedName,
+        name: resolvedName,
+      });
+      await Settings.create({ userId: user._id });
+      isNewUser = true;
+    }
+
+    user.lastLoginAt = new Date();
+    await user.save();
+    await EmailOtpChallenge.deleteOne({ _id: challenge._id });
+
+    const accessToken = signAccessToken(user._id.toString(), user.email);
+    const refreshToken = await this.issueRefreshToken(user._id);
+    return {
+      accessToken,
+      refreshToken,
+      isNewUser,
+      user: {
+        id: user._id.toString(),
+        email: user.email,
+        displayName: user.displayName,
+        twoFactorEnabled: user.twoFactorEnabled,
+      },
+    };
+  }
+
   /** Issue a new refresh token and persist its hash */
   private async issueRefreshToken(
-    userId: mongoose.Types.ObjectId,
-    deviceId?: mongoose.Types.ObjectId | null
+    userId: string,
+    deviceId?: string | null
   ): Promise<string> {
     const raw = generateRawToken();
     const expiresAt = new Date(
@@ -298,7 +428,7 @@ export class UserService {
     const accessToken = signAccessToken(user._id.toString(), user.email);
     const newRefreshToken = await this.issueRefreshToken(
       user._id,
-      stored.deviceId as mongoose.Types.ObjectId | null
+      stored.deviceId as string | null
     );
 
     return {
@@ -320,21 +450,21 @@ export class UserService {
   }
 
   /** Logout from all devices — revoke every refresh token for a user */
-  async logoutAll(userId: mongoose.Types.ObjectId): Promise<void> {
+  async logoutAll(userId: string): Promise<void> {
     await RefreshToken.updateMany(
       { userId, revoked: false },
       { $set: { revoked: true } }
     );
   }
 
-  async getUserById(userId: mongoose.Types.ObjectId): Promise<IUser> {
+  async getUserById(userId: string): Promise<IUser> {
     const user = await User.findById(userId);
     if (!user) throw ApiError.notFound("User");
     return user;
   }
 
   /** Count linked devices for settings display */
-  async countDevices(userId: mongoose.Types.ObjectId): Promise<number> {
+  async countDevices(userId: string): Promise<number> {
     return Device.countDocuments({ userId });
   }
 
@@ -406,7 +536,7 @@ export class UserService {
    * Generates a new 2FA secret and returns the QR code data URI.
    * Does NOT enable 2FA until it's verified.
    */
-  async setup2FA(userId: mongoose.Types.ObjectId): Promise<{ secret: string; qrCode: string }> {
+  async setup2FA(userId: string): Promise<{ secret: string; qrCode: string }> {
     const user = await User.findById(userId);
     if (!user) throw ApiError.notFound("User not found");
 
@@ -427,7 +557,7 @@ export class UserService {
   /**
    * Verifies the provided OTP against the saved secret and enables 2FA.
    */
-  async verify2FA(userId: mongoose.Types.ObjectId, otp: string): Promise<void> {
+  async verify2FA(userId: string, otp: string): Promise<void> {
     const user = await User.findById(userId).select("+twoFactorSecret");
     if (!user) throw ApiError.notFound("User not found");
 
@@ -451,7 +581,7 @@ export class UserService {
   /**
    * Disables 2FA (requires password verification).
    */
-  async disable2FA(userId: mongoose.Types.ObjectId, password: string): Promise<void> {
+  async disable2FA(userId: string, password: string): Promise<void> {
     const user = await User.findById(userId).select("+passwordHash");
     if (!user) throw ApiError.notFound("User not found");
 

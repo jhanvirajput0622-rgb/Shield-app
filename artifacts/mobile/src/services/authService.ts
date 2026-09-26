@@ -1,7 +1,7 @@
 /**
  * authService — register, login, logout, token refresh.
  *
- * SECURITY: MONGODB_URI and JWT_SECRET are NEVER used here.
+ * SECURITY: Firestore service credentials and JWT_SECRET are NEVER used here.
  * The mobile app only holds the opaque JWT and refresh token in SecureStore.
  */
 import { apiFetch } from "./api";

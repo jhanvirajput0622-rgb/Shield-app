@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import { randomUUID } from "node:crypto";
 import { PhishingCheck, IPhishingCheck, PhishingVerdict } from "../models/PhishingCheck";
 import { SecurityEvent } from "../models/SecurityEvent";
 import { Device } from "../models/Device";
@@ -45,7 +45,7 @@ function analyzeUrl(urlHash: string, domain: string): {
 
 export class PhishingService {
   async checkUrl(
-    userId: mongoose.Types.ObjectId,
+    userId: string,
     urlHash: string,
     domain: string,
     encryptedUrl: string,
@@ -55,7 +55,7 @@ export class PhishingService {
 
     // Get primary device for the user (nullable — OK)
     const device = await Device.findOne({ userId }).sort({ lastSeenAt: -1 });
-    const deviceId = device?._id ?? new mongoose.Types.ObjectId();
+    const deviceId = device?._id ?? randomUUID();
 
     const check = await PhishingCheck.create({
       userId,
@@ -87,7 +87,7 @@ export class PhishingService {
   }
 
   async getLog(
-    userId: mongoose.Types.ObjectId,
+    userId: string,
     limit = 50
   ): Promise<{
     entries: IPhishingCheck[];
@@ -105,7 +105,7 @@ export class PhishingService {
     return { entries, totalScanned, threatsBlocked };
   }
 
-  async clearLog(userId: mongoose.Types.ObjectId): Promise<void> {
+  async clearLog(userId: string): Promise<void> {
     await PhishingCheck.deleteMany({ userId });
   }
 }

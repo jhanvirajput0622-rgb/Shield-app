@@ -23,14 +23,14 @@ Liveness probe. No auth required.
 ---
 
 ### `GET /api/health`
-Full health check including MongoDB status.
+Full health check including Firestore status.
 
 **Response 200 (connected):**
 ```json
 {
   "success": true,
   "service": "Shield API",
-  "database": "MongoDB",
+  "database": "Firestore",
   "databaseStatus": "connected",
   "timestamp": "2026-08-11T12:00:00.000Z",
   "version": "1.0.0"

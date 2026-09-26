@@ -10,7 +10,7 @@
 | [guides/AUTH.md](./guides/AUTH.md) | Authentication system deep-dive |
 | [guides/MOBILE.md](./guides/MOBILE.md) | Mobile app architecture, screens, hooks, state |
 | [architecture/OVERVIEW.md](./architecture/OVERVIEW.md) | System architecture, data flow, security model |
-| [architecture/DATABASE.md](./architecture/DATABASE.md) | MongoDB schema, models, indexes, relationships |
+| [architecture/DATABASE.md](./architecture/DATABASE.md) | Firestore collections, documents, and relationships |
 | [api/REFERENCE.md](./api/REFERENCE.md) | Complete REST API reference |
 | [api/ERRORS.md](./api/ERRORS.md) | Error codes, response shapes, troubleshooting |
 
@@ -19,7 +19,7 @@
 ```
 Shield-app/
 ├── artifacts/mobile/      ← Expo React Native app (TypeScript)
-├── server/                ← Express + Mongoose backend (TypeScript)
+├── server/                ← Express + Firebase Firestore backend (TypeScript)
 ├── lib/
 │   ├── api-clients-react/ ← Orval-generated TanStack Query hooks
 │   ├── api-spec/          ← OpenAPI 0.1.0 spec (source for codegen)
@@ -27,4 +27,4 @@ Shield-app/
 └── docs/                  ← You are here
 ```
 
-The mobile app **never** connects directly to MongoDB. All data flows through the REST API.
+The mobile app **never** connects directly to Firestore. All data flows through the REST API.

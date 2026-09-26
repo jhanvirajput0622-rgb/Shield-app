@@ -2,7 +2,6 @@ import { Request, Response } from "express";
 import { wifiService } from "../services/wifi.service";
 import { WifiSecurityType } from "../models/WifiNetwork";
 import { ApiError } from "../utils/ApiError";
-import mongoose from "mongoose";
 
 export const wifiController = {
   // ── POST /api/wifi/check ──────────────────────────────────────────────────
@@ -59,9 +58,6 @@ export const wifiController = {
   // ── PATCH /api/wifi/:id/trust ─────────────────────────────────────────────
   async trustNetwork(req: Request, res: Response): Promise<void> {
     const { id } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      throw ApiError.badRequest("Invalid network id");
-    }
     const network = await wifiService.trustNetwork(req.userId, id);
     res.json({
       success: true,

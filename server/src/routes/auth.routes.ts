@@ -7,6 +7,8 @@ import {
   registerSchema,
   loginSchema,
   googleAuthSchema,
+  requestEmailOtpSchema,
+  verifyEmailOtpSchema,
   refreshSchema,
   logoutSchema,
   forgotPasswordSchema,
@@ -47,6 +49,22 @@ router.post(
   authLimiter,
   validate(googleAuthSchema),
   asyncHandler(authController.googleAuth)
+);
+
+// POST /api/auth/email-otp/request
+router.post(
+  "/email-otp/request",
+  authLimiter,
+  validate(requestEmailOtpSchema),
+  asyncHandler(authController.requestEmailOtp)
+);
+
+// POST /api/auth/email-otp/verify
+router.post(
+  "/email-otp/verify",
+  authLimiter,
+  validate(verifyEmailOtpSchema),
+  asyncHandler(authController.verifyEmailOtp)
 );
 
 // POST /api/auth/logout  (refresh token in body, access token optional)

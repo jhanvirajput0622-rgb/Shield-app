@@ -7,7 +7,7 @@
  * - On success: tokens are stored in SecureStore and the user is routed to
  *   the main Dashboard tab.
  */
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -25,9 +25,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import colors from "@/constants/colors";
-import { useLogin } from "@/hooks/useAuth";
+import { useLogin, useRequestEmailOtp, useVerifyEmailOtp } from "@/hooks/useAuth";
 import { useAuthStore } from "@/store/authStore";
 import { ShieldApiError } from "@/lib/apiClient";
+import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 
 const c = colors.dark;
 
@@ -61,6 +62,8 @@ export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const login = useLogin();
+  const requestEmailOtp = useRequestEmailOtp();
+  const verifyEmailOtp = useVerifyEmailOtp();
   const { setUser } = useAuthStore();
 
   const [email, setEmail] = useState("");
@@ -69,8 +72,21 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [mfaRequired, setMfaRequired] = useState(false);
+  const [emailOtpMode, setEmailOtpMode] = useState(false);
+  const [emailOtpSent, setEmailOtpSent] = useState(false);
+  const [emailOtp, setEmailOtp] = useState("");
+  const [emailOtpAuthenticator, setEmailOtpAuthenticator] = useState("");
+  const [emailOtpMfaRequired, setEmailOtpMfaRequired] = useState(false);
+  const [resendCountdown, setResendCountdown] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [touched, setTouched] = useState({ email: false, password: false });
+
+  useEffect(() => {
+    if (resendCountdown <= 0) return;
+    const timer = setTimeout(() => setResendCountdown((seconds) => seconds - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendCountdown]);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
@@ -127,6 +143,53 @@ export default function LoginScreen() {
     }
   };
 
+  const handleRequestEmailOtp = async () => {
+    setError(null);
+    setNotice(null);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError("Enter a valid email address first.");
+      return;
+    }
+    try {
+      await requestEmailOtp.mutateAsync({ email: email.trim().toLowerCase() });
+      setEmailOtpSent(true);
+      setEmailOtp("");
+      setEmailOtpMfaRequired(false);
+      setResendCountdown(60);
+      setNotice(`A verification code was sent to ${email.trim().toLowerCase()}.`);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Could not send the code. Try again.");
+    }
+  };
+
+  const handleVerifyEmailOtp = async () => {
+    setError(null);
+    setNotice(null);
+    if (!/^\d{6}$/.test(emailOtp)) {
+      setError("Enter the 6-digit code from your email.");
+      return;
+    }
+    try {
+      const data = await verifyEmailOtp.mutateAsync({
+        email: email.trim().toLowerCase(),
+        code: emailOtp,
+        authenticatorOtp: emailOtpMfaRequired ? emailOtpAuthenticator : undefined,
+      });
+      setUser({ id: data.user.id, email: data.user.email, displayName: data.user.displayName });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setNotice("Email verified. Opening Shield...");
+      setTimeout(() => router.replace(data.isNewUser ? "/onboarding" : "/(tabs)"), 650);
+    } catch (err: unknown) {
+      if (isMfaRequired(err)) {
+        setEmailOtpMfaRequired(true);
+        setError("Enter the authenticator code to finish signing in.");
+        return;
+      }
+      setError(err instanceof Error ? err.message : "Code verification failed. Try again.");
+    }
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.flex}
@@ -162,6 +225,12 @@ export default function LoginScreen() {
               <Text style={styles.errorText}>{error}</Text>
             </View>
           )}
+          {notice && (
+            <View style={styles.successBanner}>
+              <Feather name="check-circle" size={14} color={c.safe} />
+              <Text style={styles.successText}>{notice}</Text>
+            </View>
+          )}
 
           {/* Email */}
           <View style={styles.fieldGroup}>
@@ -186,7 +255,7 @@ export default function LoginScreen() {
           </View>
 
           {/* Password */}
-          <View style={styles.fieldGroup}>
+          {!emailOtpMode && <View style={styles.fieldGroup}>
             <Text style={styles.label}>Password</Text>
             <View style={[styles.inputWrap, passwordError && styles.inputError]}>
               <Feather name="lock" size={16} color={c.textDisabled} style={styles.inputIcon} />
@@ -214,10 +283,10 @@ export default function LoginScreen() {
               </TouchableOpacity>
             </View>
             {passwordError && <Text style={styles.fieldError}>{passwordError}</Text>}
-          </View>
+          </View>}
 
           {/* MFA OTP */}
-          {mfaRequired && (
+          {!emailOtpMode && mfaRequired && (
             <View style={styles.fieldGroup}>
               <Text style={styles.label}>Two-Factor Code</Text>
               <View style={styles.inputWrap}>
@@ -238,8 +307,66 @@ export default function LoginScreen() {
             </View>
           )}
 
+          {emailOtpMode && emailOtpSent && (
+            <>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.label}>Email Verification Code</Text>
+                <View style={styles.inputWrap}>
+                  <Feather name="key" size={16} color={c.textDisabled} style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    value={emailOtp}
+                    onChangeText={(value) => setEmailOtp(value.replace(/\D/g, "").slice(0, 6))}
+                    placeholder="6-digit code"
+                    placeholderTextColor={c.textDisabled}
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    textContentType="oneTimeCode"
+                    onSubmitEditing={handleVerifyEmailOtp}
+                  />
+                </View>
+              </View>
+              {emailOtpMfaRequired && (
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.label}>Authenticator Code</Text>
+                  <View style={styles.inputWrap}>
+                    <Feather name="smartphone" size={16} color={c.textDisabled} style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      value={emailOtpAuthenticator}
+                      onChangeText={(value) => setEmailOtpAuthenticator(value.replace(/\D/g, "").slice(0, 6))}
+                      placeholder="6-digit authenticator code"
+                      placeholderTextColor={c.textDisabled}
+                      keyboardType="number-pad"
+                      maxLength={6}
+                      textContentType="oneTimeCode"
+                      onSubmitEditing={handleVerifyEmailOtp}
+                    />
+                  </View>
+                </View>
+              )}
+              <TouchableOpacity
+                style={[styles.primaryBtn, verifyEmailOtp.isPending && styles.primaryBtnDisabled]}
+                onPress={handleVerifyEmailOtp}
+                disabled={verifyEmailOtp.isPending}
+              >
+                {verifyEmailOtp.isPending ? <ActivityIndicator size="small" color={c.primaryForeground} /> : <Feather name="check" size={18} color={c.primaryForeground} />}
+                <Text style={styles.primaryBtnText}>{verifyEmailOtp.isPending ? "Verifying..." : "Verify & Continue"}</Text>
+              </TouchableOpacity>
+              <Pressable
+                onPress={handleRequestEmailOtp}
+                disabled={resendCountdown > 0 || requestEmailOtp.isPending}
+                style={styles.centerAction}
+              >
+                <Text style={[styles.forgotLink, (resendCountdown > 0 || requestEmailOtp.isPending) && styles.disabledLink]}>
+                  {requestEmailOtp.isPending ? "Sending..." : resendCountdown > 0 ? `Resend code in 0:${String(resendCountdown).padStart(2, "0")}` : "Resend code"}
+                </Text>
+              </Pressable>
+            </>
+          )}
+
           {/* Remember me + forgot password */}
-          <View style={styles.optionsRow}>
+          {!emailOtpMode && <View style={styles.optionsRow}>
             <TouchableOpacity
               style={styles.checkRow}
               onPress={() => {
@@ -262,10 +389,10 @@ export default function LoginScreen() {
             <Pressable onPress={() => router.push("/forgot-password")}>
               <Text style={styles.forgotLink}>Forgot password?</Text>
             </Pressable>
-          </View>
+          </View>}
 
           {/* Submit */}
-          <TouchableOpacity
+          {!emailOtpMode ? <TouchableOpacity
             style={[
               styles.primaryBtn,
               login.isPending && styles.primaryBtnDisabled,
@@ -282,7 +409,37 @@ export default function LoginScreen() {
             <Text style={styles.primaryBtnText}>
               {login.isPending ? "Signing in..." : "Sign In"}
             </Text>
-          </TouchableOpacity>
+          </TouchableOpacity> : !emailOtpSent ? (
+            <TouchableOpacity
+              style={[styles.primaryBtn, requestEmailOtp.isPending && styles.primaryBtnDisabled]}
+              onPress={handleRequestEmailOtp}
+              disabled={requestEmailOtp.isPending}
+            >
+              {requestEmailOtp.isPending ? <ActivityIndicator size="small" color={c.primaryForeground} /> : <Feather name="mail" size={18} color={c.primaryForeground} />}
+              <Text style={styles.primaryBtnText}>{requestEmailOtp.isPending ? "Sending code..." : "Continue with Email Code"}</Text>
+            </TouchableOpacity>
+          ) : null}
+
+          <Pressable
+            style={styles.centerAction}
+            onPress={() => {
+              setEmailOtpMode((mode) => !mode);
+              setEmailOtpSent(false);
+              setEmailOtp("");
+              setEmailOtpMfaRequired(false);
+              setError(null);
+              setNotice(null);
+            }}
+          >
+            <Text style={styles.forgotLink}>{emailOtpMode ? "Use password instead" : "Sign in with an email code"}</Text>
+          </Pressable>
+
+          <View style={styles.dividerWrap}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>OR</Text>
+            <View style={styles.dividerLine} />
+          </View>
+          <GoogleSignInButton />
 
         </View>
 
@@ -344,6 +501,8 @@ const styles = StyleSheet.create({
     borderColor: `${c.danger}30`,
   },
   errorText: { fontSize: 13, color: c.danger, flex: 1 },
+  successBanner: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: `${c.safe}15`, borderRadius: 10, padding: 12, borderWidth: 1, borderColor: `${c.safe}30` },
+  successText: { fontSize: 13, color: c.safe, flex: 1 },
   fieldError: { fontSize: 12, color: c.danger, marginTop: -2 },
   fieldGroup: { gap: 8 },
   label: {
@@ -385,6 +544,11 @@ const styles = StyleSheet.create({
   },
   checkText: { fontSize: 13, color: c.mutedForeground },
   forgotLink: { fontSize: 13, color: c.primary, fontWeight: "600" },
+  disabledLink: { opacity: 0.5 },
+  centerAction: { alignItems: "center", paddingVertical: 4 },
+  dividerWrap: { flexDirection: "row", alignItems: "center", gap: 12 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: c.border },
+  dividerText: { color: c.textDisabled, fontSize: 11, fontWeight: "700" },
   primaryBtn: {
     flexDirection: "row",
     alignItems: "center",

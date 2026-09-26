@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import { randomUUID } from "node:crypto";
 import { VpnSession, IVpnSession } from "../models/VpnSession";
 import { Device } from "../models/Device";
 import { SecurityEvent } from "../models/SecurityEvent";
@@ -30,7 +30,7 @@ function normalizeProtocol(protocol?: string): { protocol: string; encryption: s
 export class NetworkService {
   /** Find the currently active VPN session for a user (if any) */
   async getActiveSession(
-    userId: mongoose.Types.ObjectId
+    userId: string
   ): Promise<IVpnSession | null> {
     return VpnSession.findOne({
       userId,
@@ -39,7 +39,7 @@ export class NetworkService {
   }
 
   async connect(
-    userId: mongoose.Types.ObjectId,
+    userId: string,
     options: ConnectVpnOptions = {}
   ): Promise<IVpnSession> {
     // Disconnect any lingering sessions first
@@ -50,7 +50,7 @@ export class NetworkService {
 
     const tunnel = normalizeProtocol(options.protocol);
     const device = await Device.findOne({ userId }).sort({ lastSeenAt: -1 });
-    const deviceId = device?._id ?? new mongoose.Types.ObjectId();
+    const deviceId = device?._id ?? randomUUID();
 
     const session = await VpnSession.create({
       userId,
@@ -95,7 +95,7 @@ export class NetworkService {
     return session;
   }
 
-  async disconnect(userId: mongoose.Types.ObjectId): Promise<boolean> {
+  async disconnect(userId: string): Promise<boolean> {
     const result = await VpnSession.updateMany(
       { userId, connectionStatus: { $in: ["connecting", "connected"] } },
       { $set: { connectionStatus: "disconnected", disconnectedAt: new Date() } }

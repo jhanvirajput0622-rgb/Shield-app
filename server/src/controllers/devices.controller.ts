@@ -1,10 +1,9 @@
 import { Request, Response } from "express";
 import { Device } from "../models/Device";
 import { ApiError } from "../utils/ApiError";
-import mongoose from "mongoose";
 
 /** Shape a device document into the API response object */
-function deviceView(doc: InstanceType<typeof Device>) {
+function deviceView(doc: any) {
   return {
     id: doc._id.toString(),
     deviceName: doc.deviceName,
@@ -76,9 +75,6 @@ export const devicesController = {
 
   // ── GET /api/devices/:id ──────────────────────────────────────────────────
   async getDevice(req: Request, res: Response): Promise<void> {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-      throw ApiError.badRequest("Invalid device id");
-    }
     const device = await Device.findOne({
       _id: req.params.id,
       userId: req.userId,
@@ -89,9 +85,6 @@ export const devicesController = {
 
   // ── DELETE /api/devices/:id ───────────────────────────────────────────────
   async deleteDevice(req: Request, res: Response): Promise<void> {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-      throw ApiError.badRequest("Invalid device id");
-    }
     const result = await Device.deleteOne({
       _id: req.params.id,
       userId: req.userId,

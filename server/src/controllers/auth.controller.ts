@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { userService } from "../services/user.service";
 import { auditService } from "../services/audit.service";
-import { RegisterBody, LoginBody, GoogleAuthBody, RefreshBody, LogoutBody, ForgotPasswordBody, ResetPasswordBody, Verify2FABody, Disable2FABody } from "../validators/auth.validator";
+import { RegisterBody, LoginBody, GoogleAuthBody, RequestEmailOtpBody, VerifyEmailOtpBody, RefreshBody, LogoutBody, ForgotPasswordBody, ResetPasswordBody, Verify2FABody, Disable2FABody } from "../validators/auth.validator";
 
 function ipOf(req: Request): string {
   return (
@@ -19,7 +19,7 @@ export const authController = {
 
     // Fire-and-forget audit log
     auditService.log(
-      result.user.id as unknown as import("mongoose").Types.ObjectId,
+      result.user.id,
       "REGISTER",
       `New account registered: ${email}`,
       { ipAddress: ipOf(req), userAgent: req.headers["user-agent"] ?? "" }
@@ -42,7 +42,7 @@ export const authController = {
     const result = await userService.login(email, password, otp);
 
     auditService.log(
-      result.user.id as unknown as import("mongoose").Types.ObjectId,
+      result.user.id,
       "LOGIN",
       `Successful login for ${email}`,
       { ipAddress: ipOf(req), userAgent: req.headers["user-agent"] ?? "" }
@@ -65,12 +65,35 @@ export const authController = {
     const result = await userService.googleSignIn(idToken);
 
     auditService.log(
-      result.user.id as unknown as import("mongoose").Types.ObjectId,
+      result.user.id,
       "LOGIN",
       `Successful Google sign-in for ${result.user.email}`,
       { metadata: { method: "google" }, ipAddress: ipOf(req), userAgent: req.headers["user-agent"] ?? "" }
     ).catch(() => {/* non-critical */});
 
+    res.json({
+      success: true,
+      data: {
+        token: result.accessToken,
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        isNewUser: result.isNewUser,
+        user: result.user,
+      },
+    });
+  },
+
+  // ── POST /api/auth/email-otp/request ─────────────────────────────────────
+  async requestEmailOtp(req: Request, res: Response): Promise<void> {
+    const { email, name } = req.body as RequestEmailOtpBody;
+    await userService.requestEmailOtp(email, name);
+    res.json({ success: true, message: "If the address can receive mail, a code has been sent.", resendAfterSeconds: 60 });
+  },
+
+  // ── POST /api/auth/email-otp/verify ──────────────────────────────────────
+  async verifyEmailOtp(req: Request, res: Response): Promise<void> {
+    const { email, code, authenticatorOtp } = req.body as VerifyEmailOtpBody;
+    const result = await userService.verifyEmailOtp(email, code, authenticatorOtp);
     res.json({
       success: true,
       data: {
@@ -89,7 +112,7 @@ export const authController = {
     const result = await userService.refreshTokens(refreshToken);
 
     auditService.log(
-      result.user.id as unknown as import("mongoose").Types.ObjectId,
+      result.user.id,
       "TOKEN_REFRESH",
       "Access token refreshed",
       { ipAddress: ipOf(req), userAgent: req.headers["user-agent"] ?? "" }

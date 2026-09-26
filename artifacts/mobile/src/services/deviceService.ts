@@ -1,6 +1,6 @@
 /**
  * deviceService — device registration and CRUD against /api/devices.
- * The mobile app NEVER connects to MongoDB directly.
+ * The mobile app NEVER connects to Firestore directly.
  */
 import { apiFetch } from "./api";
 

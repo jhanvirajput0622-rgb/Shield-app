@@ -1,4 +1,3 @@
-import mongoose from "mongoose";
 import { Device, IDevice } from "../models/Device";
 import { ApiError } from "../utils/ApiError";
 
@@ -13,14 +12,14 @@ export interface RegisterDeviceInput {
 
 export class DeviceService {
   /** Get the primary device for a user (first registered / most recently seen) */
-  async getPrimaryDevice(userId: mongoose.Types.ObjectId): Promise<IDevice | null> {
+  async getPrimaryDevice(userId: string): Promise<IDevice | null> {
     return Device.findOne({ userId }).sort({ lastSeenAt: -1 });
   }
 
   /** Get by ID, enforcing ownership */
   async getDeviceById(
-    deviceId: mongoose.Types.ObjectId,
-    userId: mongoose.Types.ObjectId
+    deviceId: string,
+    userId: string
   ): Promise<IDevice> {
     const device = await Device.findOne({ _id: deviceId, userId });
     if (!device) throw ApiError.notFound("Device");
@@ -29,7 +28,7 @@ export class DeviceService {
 
   /** Register a new device for a user */
   async registerDevice(
-    userId: mongoose.Types.ObjectId,
+    userId: string,
     input: RegisterDeviceInput
   ): Promise<IDevice> {
     return Device.create({
@@ -45,8 +44,8 @@ export class DeviceService {
 
   /** Touch lastSeenAt and optionally update battery */
   async heartbeat(
-    deviceId: mongoose.Types.ObjectId,
-    userId: mongoose.Types.ObjectId,
+    deviceId: string,
+    userId: string,
     batteryPercent?: number
   ): Promise<IDevice> {
     const update: Partial<IDevice> = { lastSeenAt: new Date() };
@@ -63,8 +62,8 @@ export class DeviceService {
 
   /** Store GPS coordinates pushed from the device */
   async updateLocation(
-    deviceId: mongoose.Types.ObjectId,
-    userId: mongoose.Types.ObjectId,
+    deviceId: string,
+    userId: string,
     latitude: number,
     longitude: number,
     accuracy: number | null,
@@ -93,8 +92,8 @@ export class DeviceService {
 
   /** Queue a remote lock command */
   async queueLock(
-    deviceId: mongoose.Types.ObjectId,
-    userId: mongoose.Types.ObjectId,
+    deviceId: string,
+    userId: string,
     message: string
   ): Promise<IDevice> {
     const device = await Device.findOneAndUpdate(
@@ -114,8 +113,8 @@ export class DeviceService {
 
   /** Queue a remote wipe command — enforces confirmation phrase */
   async queueWipe(
-    deviceId: mongoose.Types.ObjectId,
-    userId: mongoose.Types.ObjectId,
+    deviceId: string,
+    userId: string,
     confirmationPhrase: string,
     deviceName: string
   ): Promise<IDevice> {

@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import { randomUUID } from "node:crypto";
 import { WifiNetwork, IWifiNetwork, WifiSecurityType } from "../models/WifiNetwork";
 import { SecurityEvent } from "../models/SecurityEvent";
 import { Device } from "../models/Device";
@@ -16,11 +16,11 @@ export class WifiService {
    * Returns the upserted WifiNetwork document.
    */
   async checkNetwork(
-    userId: mongoose.Types.ObjectId,
+    userId: string,
     input: WifiCheckInput
   ): Promise<IWifiNetwork> {
     const device = await Device.findOne({ userId }).sort({ lastSeenAt: -1 });
-    const deviceId = device?._id ?? new mongoose.Types.ObjectId();
+    const deviceId = device?._id ?? randomUUID();
 
     const isUnsecured = ["OPEN", "WEP"].includes(input.securityType);
 
@@ -40,6 +40,9 @@ export class WifiService {
       },
       { upsert: true, new: true }
     );
+    if (!network) {
+      throw new Error("Unable to persist Wi-Fi network");
+    }
 
     // Emit a security event for open/unsecured networks
     if (isUnsecured) {
@@ -59,12 +62,12 @@ export class WifiService {
     return network;
   }
 
-  async getNetworks(userId: mongoose.Types.ObjectId): Promise<IWifiNetwork[]> {
+  async getNetworks(userId: string): Promise<IWifiNetwork[]> {
     return WifiNetwork.find({ userId }).sort({ lastDetectedAt: -1 }).limit(50);
   }
 
   async trustNetwork(
-    userId: mongoose.Types.ObjectId,
+    userId: string,
     networkId: string
   ): Promise<IWifiNetwork> {
     const network = await WifiNetwork.findOneAndUpdate(

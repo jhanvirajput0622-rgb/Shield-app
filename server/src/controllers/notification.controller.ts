@@ -1,5 +1,4 @@
 import { Request, Response } from "express";
-import mongoose from "mongoose";
 import { Notification } from "../models/Notification";
 import { ApiError } from "../utils/ApiError";
 import { MarkReadBody } from "../validators/notification.validator";
@@ -34,10 +33,8 @@ export const notificationController = {
   // PATCH /api/notifications/mark-read — mark selected notifications as read
   async markRead(req: Request, res: Response): Promise<void> {
     const { ids } = req.body as MarkReadBody;
-    const objectIds = ids.map((id) => new mongoose.Types.ObjectId(id));
-
     await Notification.updateMany(
-      { _id: { $in: objectIds }, userId: req.userId }, // Ownership enforced
+      { _id: { $in: ids }, userId: req.userId }, // Ownership enforced
       { $set: { isRead: true } }
     );
 

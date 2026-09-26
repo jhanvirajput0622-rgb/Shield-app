@@ -2,14 +2,14 @@
  * Centralized API client for the Shield mobile app.
  *
  * All API calls go through this module — the mobile app NEVER connects
- * directly to MongoDB. Every request is proxied through the
+ * directly to Firestore. Every request is proxied through the
  * Node.js + Express backend.
  *
  * Base URL is read from EXPO_PUBLIC_API_URL (set in .env).
  * JWT access tokens are stored in SecureStore (native) / AsyncStorage (web).
  *
  * SECURITY:
- *   - MONGODB_URI is NEVER referenced here.
+ *   - Firestore server credentials are NEVER referenced here.
  *   - JWT_SECRET is NEVER referenced here.
  *   - Private device keys stay in SecureStore / iOS Keychain.
  */

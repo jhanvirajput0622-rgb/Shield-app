@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import { randomUUID } from "node:crypto";
 import { AppPermissionScan, IAppPermissionScan, IAppFinding } from "../models/AppPermissionScan";
 import { SecurityEvent } from "../models/SecurityEvent";
 import { Device } from "../models/Device";
@@ -75,7 +75,7 @@ export class PermissionScanService {
    * persists the result, and returns it.
    */
   async runScan(
-    userId: mongoose.Types.ObjectId,
+    userId: string,
     rawApps: Array<{
       appName: string;
       packageName: string;
@@ -84,7 +84,7 @@ export class PermissionScanService {
     }>
   ): Promise<IAppPermissionScan> {
     const device = await Device.findOne({ userId }).sort({ lastSeenAt: -1 });
-    const deviceId = device?._id ?? new mongoose.Types.ObjectId();
+    const deviceId = device?._id ?? randomUUID();
 
     const scoredApps = rawApps.map((a) =>
       assessApp({
@@ -126,7 +126,7 @@ export class PermissionScanService {
 
   /** Return the most recent scan result for a user */
   async getLatestScan(
-    userId: mongoose.Types.ObjectId
+    userId: string
   ): Promise<IAppPermissionScan | null> {
     return AppPermissionScan.findOne({ userId })
       .sort({ scannedAt: -1 }) as unknown as Promise<IAppPermissionScan | null>;

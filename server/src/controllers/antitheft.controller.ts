@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { deviceService } from "../services/device.service";
 import { securityEventService } from "../services/securityEvent.service";
 import { auditService } from "../services/audit.service";
+import { isoOrNull } from "../utils/date";
 import {
   LockDeviceBody,
   WipeDeviceBody,
@@ -15,7 +16,7 @@ function deviceToResponse(device: Awaited<ReturnType<typeof deviceService.getPri
     deviceName: device.deviceName,
     status: device.status,
     batteryPercent: device.batteryPercent,
-    lastSeenAt: device.lastSeenAt.toISOString(),
+    lastSeenAt: isoOrNull(device.lastSeenAt),
     locationAvailable: device.locationAvailable,
     latitude: device.latitude,
     longitude: device.longitude,

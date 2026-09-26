@@ -39,7 +39,13 @@ import appPermissionsRoutes from "./routes/appPermissions.routes";
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-const app = express();
+/**
+ * Exported so the E2E suite can mount the real application on an ephemeral port
+ * (see test/helpers/app.ts) instead of testing a re-assembled copy of these
+ * routes. Nothing about the middleware order below changes based on who imports
+ * it -- `app` is fully configured by the time this module finishes evaluating.
+ */
+export const app = express();
 
 // ── Security headers ──────────────────────────────────────────────────────────
 app.use(
@@ -199,4 +205,21 @@ async function start(): Promise<void> {
   });
 }
 
-start();
+/**
+ * Only bind a port when executed directly (`node dist/server.js`). When the
+ * module is imported -- as the E2E suite does -- the caller owns the lifecycle
+ * and binds its own ephemeral port via `test/helpers/app.ts`.
+ *
+ * `require.main === module` is false under `ts-node-dev`/`nodemon` re-exec in
+ * some setups, so the module-path comparison is kept as a fallback.
+ */
+const isEntryPoint =
+  require.main === module ||
+  process.argv[1] === __filename ||
+  (process.argv[1] ?? "").replace(/\\/g, "/").endsWith("/server.js");
+
+if (isEntryPoint) {
+  void start();
+}
+
+export { start };

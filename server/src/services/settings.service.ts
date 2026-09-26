@@ -1,6 +1,8 @@
 import { Settings, ISettings } from "../models/Settings";
 import { User } from "../models/User";
 import { Device } from "../models/Device";
+import { SETTINGS_DEFAULTS } from "../db/schema";
+import { isoOrNull } from "../utils/date";
 
 export interface FullSettings {
   webProtectionEnabled: boolean;
@@ -20,7 +22,7 @@ export class SettingsService {
   private async getOrCreate(userId: string): Promise<ISettings> {
     let settings = await Settings.findOne({ userId });
     if (!settings) {
-      settings = await Settings.create({ userId });
+      settings = await Settings.create({ userId, ...SETTINGS_DEFAULTS });
     }
     return settings;
   }
@@ -32,15 +34,19 @@ export class SettingsService {
       Device.countDocuments({ userId }),
     ]);
 
+    // The `?? false` fallbacks are not redundant with SETTINGS_DEFAULTS: rows
+    // created before that constant existed have none of these fields stored, and
+    // returning `undefined` drops the key from the JSON entirely, violating the
+    // `required` list on `ShieldSettings` in lib/api-spec/openapi.yaml.
     return {
-      webProtectionEnabled: settings.webProtectionEnabled,
-      vpnAutoConnect: settings.vpnAutoConnect,
-      killSwitchEnabled: settings.killSwitchEnabled,
-      notifyHighRiskApps: settings.notifyHighRiskApps,
-      notifyPhishingThreats: settings.notifyPhishingThreats,
-      notifyDeviceUnlock: settings.notifyDeviceUnlock,
+      webProtectionEnabled: settings.webProtectionEnabled ?? false,
+      vpnAutoConnect: settings.vpnAutoConnect ?? false,
+      killSwitchEnabled: settings.killSwitchEnabled ?? false,
+      notifyHighRiskApps: settings.notifyHighRiskApps ?? false,
+      notifyPhishingThreats: settings.notifyPhishingThreats ?? false,
+      notifyDeviceUnlock: settings.notifyDeviceUnlock ?? false,
       twoFactorEnabled: user?.twoFactorEnabled ?? false,
-      lastLoginAt: user?.lastLoginAt?.toISOString() ?? null,
+      lastLoginAt: isoOrNull(user?.lastLoginAt),
       accountEmail: user?.email ?? "",
       linkedDeviceCount,
     };

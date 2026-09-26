@@ -11,6 +11,7 @@
 | [guides/MOBILE.md](./guides/MOBILE.md) | Mobile app architecture, screens, hooks, state |
 | [architecture/OVERVIEW.md](./architecture/OVERVIEW.md) | System architecture, data flow, security model |
 | [architecture/DATABASE.md](./architecture/DATABASE.md) | Firestore collections, documents, and relationships |
+| [FIREBASE.md](./FIREBASE.md) | Firebase integration rules, query layer, cursors, and known schema drift |
 | [api/REFERENCE.md](./api/REFERENCE.md) | Complete REST API reference |
 | [api/ERRORS.md](./api/ERRORS.md) | Error codes, response shapes, troubleshooting |
 

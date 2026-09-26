@@ -7,6 +7,7 @@ import { Device } from "../models/Device";
 import { RefreshToken, generateRawToken, hashRefreshToken } from "../models/RefreshToken";
 import { PasswordResetToken, generateResetToken, hashResetToken } from "../models/PasswordResetToken";
 import { EmailOtpChallenge } from "../models/EmailOtpChallenge";
+import { SETTINGS_DEFAULTS } from "../db/schema";
 import { ApiError } from "../utils/ApiError";
 import { signAccessToken } from "../middleware/auth.middleware";
 import { logger } from "../utils/logger";
@@ -150,7 +151,7 @@ export class UserService {
         displayName: resolvedName,
         name: resolvedName,
       });
-      await Settings.create({ userId: user._id });
+      await Settings.create({ userId: user._id, ...SETTINGS_DEFAULTS });
       isNewUser = true;
     }
 
@@ -187,6 +188,17 @@ export class UserService {
       deviceId: deviceId ?? null,
       tokenHash: hashRefreshToken(raw),
       expiresAt,
+      // Written explicitly rather than left absent.
+      //
+      // `logoutAll` revokes with the filter `{ userId, revoked: false }`. A
+      // Firestore equality filter does NOT match a document where the field is
+      // missing, so leaving `revoked` unset meant "log out all devices" matched
+      // zero documents and silently did nothing. Persisting the flag makes the
+      // filter match, and keeps the `refresh_tokens` composite index usable.
+      //
+      // Reads still use truthiness (`if (stored.revoked)`), which treats a
+      // missing value as "not revoked" for tokens issued before this change.
+      revoked: false,
     });
     return raw;
   }
@@ -223,7 +235,7 @@ export class UserService {
     });
 
     // Seed default settings for the new user
-    await Settings.create({ userId: user._id });
+    await Settings.create({ userId: user._id, ...SETTINGS_DEFAULTS });
 
     const accessToken = signAccessToken(user._id.toString(), user.email);
     const refreshToken = await this.issueRefreshToken(user._id);
@@ -358,7 +370,7 @@ export class UserService {
         name: displayName,
         googleSub,
       });
-      await Settings.create({ userId: user._id });
+      await Settings.create({ userId: user._id, ...SETTINGS_DEFAULTS });
       isNewUser = true;
       logger.info(`New Google account registered: ${email}`);
     }
@@ -451,10 +463,17 @@ export class UserService {
 
   /** Logout from all devices — revoke every refresh token for a user */
   async logoutAll(userId: string): Promise<void> {
-    await RefreshToken.updateMany(
-      { userId, revoked: false },
-      { $set: { revoked: true } }
-    );
+    // Filters on `userId` alone, deliberately.
+    //
+    // The previous version also filtered `revoked: false`, on the assumption that
+    // every stored token carries the flag. Firestore equality filters do not
+    // match documents where the field is absent, and tokens were being written
+    // without `revoked`, so this matched zero documents and "log out all devices"
+    // silently did nothing. Restricting to `userId` expresses the actual intent
+    // ("revoke everything this user holds") and is also correct for tokens issued
+    // before the flag was persisted. Re-revoking an already-revoked token is a
+    // no-op.
+    await RefreshToken.updateMany({ userId }, { $set: { revoked: true } });
   }
 
   async getUserById(userId: string): Promise<IUser> {

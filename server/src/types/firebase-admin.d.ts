@@ -28,9 +28,13 @@ declare module "firebase-admin/firestore" {
     get(): Promise<{ docs: Array<{ id: string; data(): unknown }> }>;
   }
 
+  export interface FieldPath {
+    toString(): string;
+  }
+
   export interface Query {
     where(fieldPath: string, opStr: WhereFilterOp, value: unknown): Query;
-    orderBy(fieldPath: string, directionStr?: "asc" | "desc"): Query;
+    orderBy(fieldPath: string | FieldPath, directionStr?: "asc" | "desc"): Query;
     limit(limit: number): Query;
     get(): Promise<{ docs: Array<{ id: string; data(): unknown }> }>;
   }
@@ -44,6 +48,15 @@ declare module "firebase-admin/firestore" {
   }
 
   export function getFirestore(): Firestore;
+  /**
+   * `FieldPath.documentId()` yields `__name__`, the implicit final tiebreaker
+   * Firestore applies to any ordered query. Ordering by it explicitly makes the
+   * ordering total, which is what makes a field-value pagination cursor
+   * unambiguous when several documents share a sort value. See db/queries.ts.
+   */
+  export const FieldPath: {
+    documentId(): FieldPath;
+  };
   export const FieldValue: {
     serverTimestamp: () => unknown;
     delete: () => unknown;

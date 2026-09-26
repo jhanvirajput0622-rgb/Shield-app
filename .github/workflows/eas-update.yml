@@ -1,0 +1,43 @@
+name: EAS Update
+
+on:
+  push:
+    branches:
+      - main
+      - preview
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eas-update-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'production' || 'preview' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.13.1
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install EAS CLI
+        run: npm install --global eas-cli
+      - name: Publish OTA update
+        working-directory: artifacts/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          case "$GITHUB_REF_NAME" in
+            main) channel=production ;;
+            preview) channel=preview ;;
+            *) echo "No EAS channel configured for $GITHUB_REF_NAME" >&2; exit 1 ;;
+          esac
+          eas update --channel "$channel" --message "GitHub Actions: $GITHUB_SHA" --non-interactive

@@ -15,6 +15,7 @@ import { TheftCommand } from "../models/TheftCommand";
 import { DeviceLocation } from "../models/DeviceLocation";
 import { securityEventService } from "../services/securityEvent.service";
 import { ApiError } from "../utils/ApiError";
+import { isoOrNull } from "../utils/date";
 import { LockDeviceBody, WipeDeviceBody } from "../validators/antitheft.validator";
 
 /** Find the primary device for the authed user, throw 404 if none */
@@ -210,10 +211,13 @@ export const theftController = {
         command: c.command,
         message: c.message,
         status: c.status,
-        issuedAt: c.issuedAt.toISOString(),
-        acknowledgedAt: c.acknowledgedAt?.toISOString() ?? null,
-        completedAt: c.completedAt?.toISOString() ?? null,
-        expiresAt: c.expiresAt.toISOString(),
+        // `issuedAt` and `expiresAt` are optional in db/schema.ts and are left
+        // unset by 3 of the 4 creation paths, so an unconditional .toISOString()
+        // threw a TypeError and 500'd the whole listing.
+        issuedAt: isoOrNull(c.issuedAt),
+        acknowledgedAt: isoOrNull(c.acknowledgedAt),
+        completedAt: isoOrNull(c.completedAt),
+        expiresAt: isoOrNull(c.expiresAt),
       })),
     });
   },
@@ -251,7 +255,7 @@ export const theftController = {
           latitude: l.latitude,
           longitude: l.longitude,
           accuracy: l.accuracy,
-          recordedAt: l.recordedAt.toISOString(),
+          recordedAt: isoOrNull(l.recordedAt),
         })),
       },
     });

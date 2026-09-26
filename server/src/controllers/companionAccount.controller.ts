@@ -57,6 +57,11 @@ export const companionAccountController = {
       userId: req.userId,
       email,
       passwordHash,
+      // Required. `loginCompanionAccount` rejects with `forbidden` when
+      // `isActive` is falsy, so omitting it here made every companion account
+      // created through the API permanently unable to log in. Firestore drops
+      // undefined fields, so the document simply had no `isActive` at all.
+      isActive: true,
     });
 
     auditService.log(req.userId, "COMPANION_LOGIN", `Companion account created: ${email}`, {

@@ -8,8 +8,16 @@
     "icon": "./assets/images/icon.png",
     "scheme": "shield",
     "userInterfaceStyle": "dark",
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/05ae3d84-d7d2-454d-ad14-2b42819c4b43",
+      "fallbackToCacheTimeout": 0
+    },
     "ios": {
       "supportsTablet": false,
+      "bundleIdentifier": "com.jbaraiya2204.shield",
       "infoPlist": {
         "NSCameraUsageDescription": "Shield uses the camera to scan QR codes and check links for phishing threats.",
         "NSLocationWhenInUseUsageDescription": "Shield uses your location for Anti-Theft device tracking. Location data is encrypted end-to-end before leaving your device.",
@@ -44,6 +52,7 @@
       "expo-font",
       "expo-web-browser",
       "expo-dev-client",
+      "expo-updates",
       [
         "expo-camera",
         {

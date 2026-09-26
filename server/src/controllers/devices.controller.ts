@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { Device } from "../models/Device";
 import { ApiError } from "../utils/ApiError";
+import { isoOrNull } from "../utils/date";
 
 /** Shape a device document into the API response object */
 function deviceView(doc: any) {
@@ -15,7 +16,9 @@ function deviceView(doc: any) {
     status: doc.status,
     isOnline: doc.isOnline,
     batteryPercent: doc.batteryPercent,
-    lastSeenAt: doc.lastSeenAt.toISOString(),
+    // Optional: absent until the device first reports in. `isoOrNull` keeps this
+    // a 200 instead of the 500 an unconditional `.toISOString()` produced.
+    lastSeenAt: isoOrNull(doc.lastSeenAt),
     vpnEnabled: doc.vpnEnabled,
     theftProtectionEnabled: doc.theftProtectionEnabled,
     locationAvailable: doc.locationAvailable,
@@ -27,8 +30,8 @@ function deviceView(doc: any) {
     networkEncryption: doc.networkEncryption,
     pendingAction: doc.pendingAction,
     actionStatus: doc.actionStatus,
-    createdAt: doc.createdAt.toISOString(),
-    updatedAt: doc.updatedAt.toISOString(),
+    createdAt: isoOrNull(doc.createdAt),
+    updatedAt: isoOrNull(doc.updatedAt),
   };
 }
 
@@ -68,6 +71,11 @@ export const devicesController = {
       appVersion,
       deviceModel,
       deviceKeyFingerprint,
+      // Registering *is* the device reporting in, and `lastSeenAt` is the sort
+      // key for every device list endpoint. Leaving it unset made that ordering
+      // meaningless (Firestore sorts absent values first) and the response
+      // carried `lastSeenAt: null`.
+      lastSeenAt: new Date(),
     });
 
     res.status(201).json({ success: true, data: deviceView(device) });

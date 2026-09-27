@@ -6,6 +6,15 @@
       }
     },
     "owner": "jbaraiya2204",
-    "slug": "shield-app"
+    "slug": "shield-app",
+    "android": {
+      "package": "com.jbaraiya2204.shieldapp"
+    },
+    "ios": {
+      "bundleIdentifier": "com.jbaraiya2204.shieldapp",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    }
   }
 }

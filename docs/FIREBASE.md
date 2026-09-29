@@ -12,24 +12,61 @@ inventory), [`architecture/FIRESTORE_MIGRATION.md`](./architecture/FIRESTORE_MIG
 
 ## 1. Architecture in one paragraph
 
-Firestore is a **server-side datastore only**. The Express API in `server/` is the
-sole client, using the Firebase **Admin** SDK. `firestore.rules` denies every
-operation unconditionally, and the mobile app talks exclusively to the REST API.
+Firestore has **two disjoint client zones**, and which one a given read belongs to
+decides who is allowed to make it.
+
+The server-owned schema (25 collections, §2) is written **only** by the Express
+API through the Firebase **Admin** SDK, which bypasses `firestore.rules`
+entirely. The mobile app reaches it over HTTPS and is refused by the rules if it
+tries anything else.
+
+Separately, `artifacts/mobile/lib/firestore/` models a second schema — the ERD —
+which the mobile app *does* read and write directly with the Firestore **client**
+SDK, scoped per user by `firestore.rules`. Its 14 collections are all prefixed
+`mobile` (`mobileUsers`, `mobileDevices`, …) so they cannot collide with the
+server's `users` / `devices`.
 
 ```
 artifacts/mobile  ──HTTP/JSON──▶  server/  ──Admin SDK──▶  Firestore
-   (no Firestore SDK)              (bypasses rules)
+        │                          (bypasses rules)      server-owned (25)
+        │
+        └──client SDK + ID token──▶ Firestore ──▶ mobile* collections (14)
+                                     (rules enforced)   ERD-owned
 ```
 
-### Why there are no realtime listeners
+The two write to disjoint paths. Anything already implemented server-side still
+goes through the API; the `mobile*` set is the new path.
 
-There is no `onSnapshot` anywhere and there should not be one. The mobile SDK
-file `artifacts/mobile/lib/firebase.ts` initialises `getFirestore()` and
-`getAuth()`, but **nothing imports it** — it is dead code and must stay unused.
-A client-side Firestore connection would bypass every validator in
-`server/src/validators/` and the ownership check in
-`server/src/middleware/auth.middleware.ts`, and it would be blocked by the
-deny-all rules anyway. The app polls through the API instead.
+### Why the ERD is namespaced with a prefix, not a path
+
+`mobile/users` is not a legal Firestore path. Paths alternate
+collection/document, so a collection reference needs an **odd** number of
+segments; `mobile/users` has two and the client SDK throws before any network
+call:
+
+```
+Invalid collection reference. Collection references must have an odd number of
+segments, but mobile/users has 2.
+```
+
+The phantom segment would also have to be a real document ID, since the segment
+before a collection always is. So the namespace goes on the collection *name*,
+which keeps every collection at one segment and every document at two. The same
+constraint is why a REST test path like `mobile/devices/x` returns 400 rather
+than 403: it is a malformed document name, rejected before rules are evaluated.
+See the header of `artifacts/mobile/lib/firestore/schema.ts`.
+
+### Realtime listeners
+
+`onSnapshot` exists, but only inside the `mobile*` zone: `crud.subscribe()` in
+`artifacts/mobile/lib/firestore/crud.ts`. Each one needs a matching `allow read`
+grant, which is separate from `get`.
+
+There are no listeners against the server-owned schema, and there should not be
+one. A client-side connection to those collections would bypass every validator
+in `server/src/validators/` and the ownership check in
+`server/src/middleware/auth.middleware.ts`, and it would be refused by the rules
+anyway. That half of the app polls through the API.
 
 ### What is *not* wired up
 
@@ -37,16 +74,20 @@ deny-all rules anyway. The app polls through the API instead.
   declares `User`, `Project`, `Milestone`, `Task` and `Comment`, a generic
   task-tracker shape with no relationship to Shield's collections. No route,
   service or test references it. Do not treat it as the schema.
-- **Firebase Auth** — not used. Authentication is a custom JWT
-  (`signAccessToken` in `server/src/middleware/auth.middleware.ts`) with
-  `refresh_tokens` in Firestore. `google-services.json` exists but is unused by
-  the server.
+- **Firebase Auth (server-side)** — the API does not use it. Authentication is a
+  custom JWT (`signAccessToken` in `server/src/middleware/auth.middleware.ts`)
+  with `refresh_tokens` in Firestore. The `mobile*` zone is different: it keys
+  ownership on the Firebase uid, so those documents require a Firebase ID token.
 - **Firebase Storage** — not configured.
 - **Cloud Messaging** — not configured.
 
 ---
 
 ## 2. Collections
+
+This section covers the **server-owned** schema only. The client-owned `mobile*`
+schema is 14 further collections declared in
+`artifacts/mobile/lib/firestore/schema.ts`; see §1.
 
 26 logical keys in `server/src/db/schema.ts` map to **25 physical
 collections**. `phishingChecks` and `webChecks` are both aliases of
@@ -105,9 +146,10 @@ repeated across pages.
 
 Two consequences, both load-bearing:
 
-- **Every composite index needs a trailing `__name__` entry.** All 28 indexes in
-  `firestore.indexes.json` have one. Deploy them before relying on cursor
-  pagination in production: `firebase deploy --only firestore:indexes`.
+- **Every composite index needs a trailing `__name__` entry.** All 55 indexes in
+  `firestore.indexes.json` have one — 28 for the server schema, 27 for the
+  `mobile*` zone. Deploy them before relying on cursor pagination in production:
+  `firebase deploy --only firestore:indexes`.
 - **A cursor from the old format is rejected, not misread.** `decodeCursor`
   returns `null` for a legacy 1-element cursor whose sort has more than one key,
   and `listDocs` then starts from the beginning. This is a breaking change for
@@ -275,7 +317,7 @@ test cannot truncate a real project by accident.
 | `auth.e2e.test.ts` | register/login/refresh/logout, 2FA, password rules |
 | `data-flows.e2e.test.ts` | devices, settings, security events, web checks, tenant isolation, persistence |
 | `companion-accounts.e2e.test.ts` | companion create/login/sessions, isolation |
-| `security-rules.e2e.test.ts` | deny-all rules, over the emulator's REST surface |
+| `security-rules.e2e.test.ts` | rules boundary over the emulator's REST surface: server schema closed to clients, `mobile*` closed to anonymous callers |
 
 `--test-concurrency=1` is deliberate: every suite truncates the shared emulator
 first, so parallel files would delete each other's fixtures.

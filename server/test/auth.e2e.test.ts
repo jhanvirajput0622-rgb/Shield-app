@@ -456,6 +456,42 @@ describe("POST /api/auth/forgot-password and reset-password", () => {
   });
 });
 
+describe("POST /api/auth/firebase-token", () => {
+  // The custom-token exchange is what lets the mobile client reach the
+  // client-owned Firestore schema, whose rules are keyed on `request.auth.uid`.
+  // The suite runs against the Firestore emulator, which serves Firestore but not
+  // Auth, so the *happy path* cannot be exercised here — there is no service
+  // account to sign with. What can be pinned is everything around it: the auth
+  // requirement, and that an unreachable Auth backend is reported as 501 rather
+  // than 500, because the client branches on that status to fall back to the API.
+  // A 500 here would read as "retry", which would never succeed.
+
+  it("requires a valid access token", async () => {
+    const anonymous = await post("/api/auth/firebase-token");
+    assert.equal(anonymous.status, 401);
+
+    const garbage = await post("/api/auth/firebase-token", undefined, { token: "not-a-jwt" });
+    assert.equal(garbage.status, 401);
+  });
+
+  it("reports 501 when Firebase Auth is unavailable, not 500", async () => {
+    const user = await createUser();
+    const response = await post("/api/auth/firebase-token", undefined, {
+      token: user.accessToken,
+    });
+
+    // The emulator sets FIRESTORE_EMULATOR_HOST, which the service treats as
+    // "Auth is off" before it ever tries to reach Google.
+    assert.equal(
+      response.status,
+      501,
+      `expected 501 under the emulator, got ${response.status}: ${JSON.stringify(response.body)}`
+    );
+    assert.equal(response.body.success, false);
+    assert.match(response.body.error.message, /Firebase Auth/i);
+  });
+});
+
 describe("error envelope", () => {
   it("returns a consistent shape for an unknown route", async () => {
     const response = await get("/api/definitely-not-a-route");

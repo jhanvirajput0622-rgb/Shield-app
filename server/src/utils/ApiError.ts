@@ -42,6 +42,16 @@ export class ApiError extends Error {
     return new ApiError(429, message);
   }
 
+  /**
+   * 501 — the server is up but the capability is switched off or not enabled on
+   * the backing service. Distinct from `internal` (500) because it is a
+   * configuration state the caller can act on, not a fault: clients use it to
+   * decide whether to fall back. See `services/firebaseAuth.service.ts`.
+   */
+  static notImplemented(message = "Not implemented"): ApiError {
+    return new ApiError(501, message);
+  }
+
   static internal(message = "Internal server error"): ApiError {
     return new ApiError(500, message, undefined, false);
   }

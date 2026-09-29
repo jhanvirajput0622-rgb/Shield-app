@@ -13,6 +13,7 @@ import {
   clearRefreshToken,
   getRememberMe,
 } from "@/lib/apiClient";
+import { signOutOfFirebase } from "@/lib/firebaseAuth";
 
 export interface AuthUser {
   id: string;
@@ -46,6 +47,12 @@ export async function clearUser(): Promise<void> {
   _user = null;
   _loading = false;
   await Promise.all([clearToken(), clearRefreshToken()]).catch(() => {});
+  // The `mobile*` Firestore collections are keyed by the Firebase uid, so a
+  // REST-only sign-out would leave the next person to sign in on this device
+  // able to read the previous user's protection settings and security logs.
+  // Awaited before notifying so subscribers never re-render into a window
+  // where the Firebase session is still live.
+  await signOutOfFirebase().catch(() => {});
   notify();
 }
 

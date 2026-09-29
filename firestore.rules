@@ -1,21 +1,259 @@
 rules_version = '2';
 
-// Shield accesses Firestore exclusively through the Express API using the
-// Firebase Admin SDK (server/src/config/firestore.ts). Admin SDK bypasses these
-// rules, so this file exists to guarantee that *no* client path can reach the
-// database directly.
+// Shield Firestore security rules.
 //
-// The mobile client (artifacts/mobile) talks exclusively to the Shield API over
-// HTTPS and authenticates with the app's own JWT (server/src/middleware/auth.middleware.ts).
-// It never initialises the Firestore client SDK -- artifacts/mobile/lib/firebase.ts is
-// dead code and must stay unused. See docs/FIREBASE.md.
+// ── Two disjoint zones ────────────────────────────────────────────────────────
+// This file governs two areas that do not overlap:
 //
-// Consequence: there is no legitimate client read or write here. Deny everything.
+//   1. Everything that is NOT `mobile*`-prefixed — denied unconditionally. That
+//      is the live, server-owned schema of 25 collections (server/src/db/schema.ts)
+//      written only by the Express API through the Admin SDK, which bypasses rules
+//      entirely. The mobile app reads it over HTTPS via lib/apiClient.ts. No
+//      client path may touch it.
+//
+//   2. The `mobile*`-prefixed collections — the ERD modelled in
+//      artifacts/mobile/lib/firestore/. The mobile app reads and writes this set
+//      directly with the Firestore client SDK, scoped per user by the helpers
+//      below.
+//
+// The split exists because the ERD's collection names (`users`, `devices`)
+// collide with live server collections. Namespacing the ERD with a `mobile`
+// prefix means the two can never corrupt each other, and revoking all client
+// access later is a single edit to the 14 blocks below.
+//
+// The prefix is applied to the collection NAME, not as a path segment. Firestore
+// paths alternate collection/document, so a collection reference must have an
+// odd number of segments: `mobile/users` has two and the SDK rejects it with
+// "Collection references must have an odd number of segments". `mobileUsers`
+// has one, `mobileUsers/{uid}` has two. See the header of schema.ts.
+//
+// ── Reading these rules ───────────────────────────────────────────────────────
+// Client-side `userId` filters in lib/firestore/crud.ts are NOT a security
+// control; a hostile client drops them. The `resource.data.userId ==
+// request.auth.uid` checks here are the actual boundary, and they are what stop
+// one user reading or writing another's devices, logs and sessions.
+//
+//   deploy:  firebase deploy --only firestore:rules
+//   test:    cd server && npm run test:e2e   (includes security-rules.e2e.test.ts)
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    // The caller is an admin, i.e. `mobileAdmins/{their uid}` exists.
+    //
+    // This is one extra document read per evaluation, which Firestore bills on
+    // every request that touches an admin-gated path. The scalable alternative
+    // is a custom claim on the ID token (`admin: true`) set by the Admin SDK,
+    // which costs no read; that is a server-side change and is not made here.
+    function isAdmin() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/mobileAdmins/$(request.auth.uid));
+    }
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // The path's document ID is the caller's uid.
+    function ownsDoc(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    // The stored document belongs to the caller.
+    function ownedByCaller() {
+      return signedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // The document being written claims the caller's uid. Without this a user
+    // could create a document owned by somebody else and then read it back
+    // through any query they control.
+    function ownedByCallerOnWrite() {
+      return signedIn() && request.resource.data.userId == request.auth.uid;
+    }
+
+    // Ownership is immutable once granted. Without this, a user could write a
+    // document with their own uid, hand it to another account, or reassign a
+    // document mid-flight to dodge ownership checks.
+    function ownershipUnchanged() {
+      return request.resource.data.userId == resource.data.userId;
+    }
+
+    // A non-admin may not grant themselves the admin role. Admins may set it.
+    function roleNotSelfEscalated() {
+      return request.resource.data.role != "admin" || isAdmin();
+    }
+
+    // ── Zone 1: server-owned schema. Deny everything. ─────────────────────────
+
     match /{document=**} {
       allow read, write: if false;
+    }
+
+    // ── Zone 2: the ERD, client-owned. ─────────────────────────────────────────
+    //
+    // Each `mobile*` collection gets its own block below with its own grants;
+    // there is no wildcard block covering the set, because every collection in
+    // it has a different ownership rule. Zone 1 above grants nothing, and
+    // Firestore rules are permissive-OR rather than deny-overrides, so a
+    // collection with no block is unreachable from a client.
+
+    // ── Server-only. Denied to every client, authenticated or not. ────────────
+
+    // Password hashes. A document a client can read is a document its owner can
+    // read, so `password_hash` is deliberately absent from `mobileUsers` and
+    // mirrored here instead.
+    match /mobileCredentials/{userId} {
+      allow read, write: if false;
+    }
+
+    // Email uniqueness ledgers. Opening these to clients would let anyone
+    // enumerate which addresses are registered.
+    match /mobileUserEmails/{slug} {
+      allow read, write: if false;
+    }
+
+    match /mobileAdminEmails/{slug} {
+      allow read, write: if false;
+    }
+
+    // ── Admin ─────────────────────────────────────────────────────────────────
+
+    // Keyed by the admin's Firebase uid so `isAdmin()` above is a single read.
+    match /mobileAdmins/{adminId} {
+      // An admin may read their own record. Admins read all admin records for
+      // the admin console.
+      allow read: if ownsDoc(adminId) || isAdmin();
+
+      // Self-registration only: you may create the admin document for your own
+      // uid, and the role must be the lowest tier. Promotion to superadmin has
+      // to go through the server.
+      allow create: if ownsDoc(adminId)
+        && request.resource.data.role == "admin"
+        && request.resource.data.email is string;
+
+      // You may edit your own record, but not change your own role upward.
+      // Parenthesised because `&&` binds tighter than `||`, and the intent is
+      // "own record with an unchanged role, OR any admin".
+      allow update: if (ownsDoc(adminId)
+        && request.resource.data.role == resource.data.role)
+        || isAdmin();
+
+      allow delete: if isAdmin() && adminId != request.auth.uid;
+    }
+
+    // ── User ──────────────────────────────────────────────────────────────────
+
+    // The document ID is the uid, so ownership needs no extra field. See
+    // UserDoc in lib/firestore/schema.ts.
+    match /mobileUsers/{userId} {
+      // A collection query here returns only the caller's own document:
+      // Firestore evaluates `read` per returned document, and every other
+      // user's document ID fails `ownsDoc`. No separate `list` grant is needed,
+      // and adding one would expose the collection.
+      allow read: if ownsDoc(userId);
+
+      allow create: if ownsDoc(userId)
+        && request.resource.data.role == "user"
+        && request.resource.data.isActive == true
+        && request.resource.data.email is string;
+
+      allow update: if ownsDoc(userId)
+        && roleNotSelfEscalated()
+        && request.resource.data.email == resource.data.email
+        // isActive is deactivated by an admin, never by the account holder.
+        && (request.resource.data.isActive == resource.data.isActive || isAdmin());
+
+      allow delete: if ownsDoc(userId) || isAdmin();
+    }
+
+    // ── Per-user collections ──────────────────────────────────────────────────
+    //
+    // devices, antiThefts, phishingDetections, vpnConnections, appPermissions,
+    // securityLogs and appSessions all follow the same shape: a `userId` field
+    // scoped to the caller, immutable after creation.
+
+    match /mobileDevices/{deviceId} {
+      allow read: if ownedByCaller();
+      allow create: if ownedByCallerOnWrite();
+      allow update: if ownedByCaller() && ownershipUnchanged();
+      allow delete: if ownedByCaller();
+    }
+
+    match /mobileAntiThefts/{theftId} {
+      allow read: if ownedByCaller();
+      allow create: if ownedByCallerOnWrite();
+      allow update: if ownedByCaller() && ownershipUnchanged();
+      allow delete: if ownedByCaller();
+    }
+
+    match /mobilePhishingDetections/{phishingId} {
+      allow read: if ownedByCaller();
+      allow create: if ownedByCallerOnWrite();
+      allow update: if ownedByCaller() && ownershipUnchanged();
+      allow delete: if ownedByCaller();
+    }
+
+    match /mobileVpnConnections/{vpnId} {
+      allow read: if ownedByCaller();
+      allow create: if ownedByCallerOnWrite();
+      allow update: if ownedByCaller() && ownershipUnchanged();
+      allow delete: if ownedByCaller();
+    }
+
+    match /mobileAppPermissions/{permissionId} {
+      allow read: if ownedByCaller();
+      allow create: if ownedByCallerOnWrite();
+      allow update: if ownedByCaller() && ownershipUnchanged();
+      allow delete: if ownedByCaller();
+    }
+
+    match /mobileSecurityLogs/{logId} {
+      allow read: if ownedByCaller();
+      allow create: if ownedByCallerOnWrite();
+      // Only `status` is mutable -- the event record itself is append-only, or
+      // it is not a log. `SecurityLogDoc` has no `updatedAt` field, so naming
+      // one here would let a write introduce a field the type does not declare.
+      allow update: if ownedByCaller()
+        && ownershipUnchanged()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status"]);
+      allow delete: if ownedByCaller();
+    }
+
+    match /mobileAppSessions/{sessionId} {
+      allow read: if ownedByCaller();
+      allow create: if ownedByCallerOnWrite();
+      // A user closing their own session is the normal case. Reviving a
+      // terminated one is not, so the transition is restricted to
+      // non-active -> terminal.
+      allow update: if ownedByCaller()
+        && ownershipUnchanged()
+        && request.resource.data.status != "active";
+      allow delete: if ownedByCaller();
+    }
+
+    // ── ProtectionSettings (singleton per user) ───────────────────────────────
+
+    // The document ID is the uid, so the one-row-per-user rule is structural:
+    // a second settings document is a second uid's settings.
+    match /mobileProtectionSettings/{userId} {
+      allow read: if ownsDoc(userId);
+      allow create: if ownsDoc(userId) && request.resource.data.userId == request.auth.uid;
+      allow update: if ownsDoc(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if ownsDoc(userId);
+    }
+
+    // ── AuditEvent ────────────────────────────────────────────────────────────
+
+    // Admin-only and append-only: there is no update or delete grant, so an
+    // audit trail cannot be edited or erased by the very person it records.
+    match /mobileAuditEvents/{eventId} {
+      allow read: if isAdmin();
+      // `adminId` is taken from the token, so an action cannot be filed against
+      // another admin's ID.
+      allow create: if isAdmin() && request.resource.data.adminId == request.auth.uid;
+      allow update, delete: if false;
     }
   }
 }

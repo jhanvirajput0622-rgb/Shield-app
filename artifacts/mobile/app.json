@@ -3,7 +3,6 @@
     "name": "Shield",
     "slug": "shield-app",
     "version": "1.0.0",
-    "sdkVersion": "57.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "shield",
@@ -12,7 +11,8 @@
       "policy": "fingerprint"
     },
     "updates": {
-      "url": "https://u.expo.dev/05ae3d84-d7d2-454d-ad14-2b42819c4b43",
+      "url": "https://u.expo.dev/f56d6edb-b361-4c89-84d6-aace6fdc34a9",
+      "checkAutomatically": "ON_LOAD",
       "fallbackToCacheTimeout": 0
     },
     "ios": {
@@ -75,7 +75,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "05ae3d84-d7d2-454d-ad14-2b42819c4b43"
+        "projectId": "f56d6edb-b361-4c89-84d6-aace6fdc34a9"
       }
     },
     "owner": "jbaraiya2204"

@@ -8,6 +8,7 @@ import {
   getRefreshToken,
   setRememberMe,
 } from "../lib/apiClient";
+import { ensureFirebaseSession, signInToFirebase, signOutOfFirebase } from "../lib/firebaseAuth";
 
 // ─── Response shapes ──────────────────────────────────────────────────────────
 
@@ -38,6 +39,35 @@ interface RefreshResponse {
   data: AuthPayload;
 }
 
+// ─── Firebase session bridging ─────────────────────────────────────────────────
+
+/**
+ * Establish the Firebase Auth session that `firestore.rules` and every service
+ * in `lib/firestore/services/` depend on. See lib/firebaseAuth.ts for why the
+ * app needs two sessions.
+ *
+ * Deliberately swallowing failures: the REST session is the app's real
+ * identity, and a Firebase outage must degrade the Firestore screens rather than
+ * block sign-in. `FirebaseSessionProvider` surfaces the resulting state, so
+ * screens still show an honest "syncing unavailable" instead of silently
+ * presenting an empty list as "no data".
+ */
+async function bridgeFirebaseSession(
+  credentials: { email: string; password: string } | { email: string }
+): Promise<void> {
+  try {
+    if ("password" in credentials) {
+      await signInToFirebase(credentials);
+    } else {
+      // No password on this path (Google, email OTP), so an identified session
+      // is not reachable. The anonymous fallback keeps Firestore readable.
+      await ensureFirebaseSession();
+    }
+  } catch (err) {
+    console.warn("[auth] Firebase session not established:", err);
+  }
+}
+
 // ─── Hooks ────────────────────────────────────────────────────────────────────
 
 export function useRegister() {
@@ -60,6 +90,7 @@ export function useRegister() {
       });
       await storeToken(res.data.accessToken ?? res.data.token);
       await storeRefreshToken(res.data.refreshToken);
+      await bridgeFirebaseSession({ email: input.email, password: input.password });
       return res.data;
     },
   });
@@ -76,6 +107,7 @@ export function useLogin() {
       await storeToken(res.data.accessToken ?? res.data.token);
       await storeRefreshToken(res.data.refreshToken);
       await setRememberMe(input.rememberMe ?? true);
+      await bridgeFirebaseSession({ email: input.email, password: input.password });
       return res.data;
     },
   });
@@ -92,6 +124,7 @@ export function useGoogleLogin() {
       await storeToken(res.data.accessToken ?? res.data.token);
       await storeRefreshToken(res.data.refreshToken);
       await setRememberMe(true);
+      await bridgeFirebaseSession({ email: res.data.user.email });
       return res.data;
     },
   });
@@ -119,6 +152,7 @@ export function useVerifyEmailOtp() {
       await storeToken(res.data.accessToken ?? res.data.token);
       await storeRefreshToken(res.data.refreshToken);
       await setRememberMe(true);
+      await bridgeFirebaseSession({ email: input.email });
       return res.data;
     },
   });
@@ -218,6 +252,10 @@ export function useLogout() {
       }
       await clearToken();
       await clearRefreshToken();
+      // Drop the Firebase session too. Skipping this would leave the next user
+      // to sign in on the device able to read the previous user's
+      // `mobile*` documents, since those are keyed by the Firebase uid.
+      await signOutOfFirebase();
     },
   });
 }

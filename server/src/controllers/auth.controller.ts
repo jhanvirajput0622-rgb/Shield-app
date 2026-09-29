@@ -1,6 +1,11 @@
 import { Request, Response } from "express";
 import { userService } from "../services/user.service";
 import { auditService } from "../services/audit.service";
+import {
+  isFirebaseAuthConfigured,
+  issueCustomToken,
+} from "../services/firebaseAuth.service";
+import { ApiError } from "../utils/ApiError";
 import { RegisterBody, LoginBody, GoogleAuthBody, RequestEmailOtpBody, VerifyEmailOtpBody, RefreshBody, LogoutBody, ForgotPasswordBody, ResetPasswordBody, Verify2FABody, Disable2FABody } from "../validators/auth.validator";
 
 function ipOf(req: Request): string {
@@ -157,6 +162,36 @@ export const authController = {
     }).catch(() => {/* non-critical */});
 
     res.json({ success: true, message: "All sessions revoked" });
+  },
+
+  // ── POST /api/auth/firebase-token (requires valid access token) ──────────
+  //
+  // Trades the API access token for a Firebase custom token, so the mobile app
+  // can obtain a Firebase ID token. `firestore.rules` authorises the client-owned
+  // schema on `request.auth.uid`, and the API's custom JWT cannot drive that, so
+  // the client needs a Firebase session. The minted uid is the server's user id,
+  // which is what makes `request.auth.uid == userId` hold in the rules.
+  //
+  // Answers 501 when Firebase Auth is unavailable — the client treats that as
+  // "direct Firestore access is off" and keeps using the API. See
+  // services/firebaseAuth.service.ts.
+  async firebaseToken(req: Request, res: Response): Promise<void> {
+    if (!isFirebaseAuthConfigured()) {
+      throw ApiError.notImplemented(
+        "Firebase Auth is not configured on this server, so no ID token can be issued. " +
+          "The app will continue to use the REST API."
+      );
+    }
+
+    const grant = await issueCustomToken(req.userId, req.userEmail);
+
+    res.json({
+      success: true,
+      data: {
+        token: grant.token,
+        uid: grant.uid,
+      },
+    });
   },
 
   // ── GET /api/auth/me ─────────────────────────────────────────────────────

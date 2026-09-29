@@ -84,6 +84,17 @@ router.post(
 // GET /api/auth/me  (requires valid access token)
 router.get("/me", authenticate, asyncHandler(authController.me));
 
+// POST /api/auth/firebase-token  (requires valid access token)
+//
+// Exchanges the API access token for a Firebase custom token. No `validate` here
+// because the endpoint takes no body — the identity comes entirely from the
+// bearer token, and there is nothing to validate.
+router.post(
+  "/firebase-token",
+  authenticate,
+  asyncHandler(authController.firebaseToken)
+);
+
 // POST /api/auth/forgot-password
 router.post(
   "/forgot-password",

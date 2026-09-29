@@ -17,6 +17,12 @@ interface CautionStateProps {
   onRetry?: () => void;
   retryLabel?: string;
   compact?: boolean;
+  /**
+   * Optional dismiss. Shown as a small ✕ rather than a second text button, so
+   * the retry action stays the visually dominant one — a user who has read the
+   * warning and wants it gone should not be offered a peer of "Try Again".
+   */
+  onDismiss?: () => void;
 }
 
 export function CautionState({
@@ -26,6 +32,7 @@ export function CautionState({
   onRetry,
   retryLabel = "Try Again",
   compact = false,
+  onDismiss,
 }: CautionStateProps) {
   const c = colors.dark;
   const iconColor = severity === "error" ? c.danger : c.warning;
@@ -67,6 +74,17 @@ export function CautionState({
           <Text style={[styles.retryText, { color: iconColor }]}>
             {retryLabel}
           </Text>
+        </TouchableOpacity>
+      )}
+      {onDismiss && (
+        <TouchableOpacity
+          onPress={onDismiss}
+          style={styles.dismissBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Dismiss"
+          hitSlop={8}
+        >
+          <Feather name="x" size={16} color={c.textDisabled} />
         </TouchableOpacity>
       )}
     </View>
@@ -117,5 +135,9 @@ const styles = StyleSheet.create({
   retryText: {
     fontSize: 13,
     fontWeight: "600",
+  },
+  dismissBtn: {
+    alignSelf: "flex-start",
+    marginTop: 8,
   },
 });

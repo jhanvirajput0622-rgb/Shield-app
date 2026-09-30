@@ -18,6 +18,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.jbaraiya2204.shield",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "NSCameraUsageDescription": "Shield uses the camera to scan QR codes and check links for phishing threats.",
         "NSLocationWhenInUseUsageDescription": "Shield uses your location for Anti-Theft device tracking. Location data is encrypted end-to-end before leaving your device.",
@@ -37,7 +38,8 @@
         "android.permission.VIBRATE",
         "android.permission.RECORD_AUDIO"
       ],
-      "package": "com.jbaraiya2204.mobile"
+      "package": "com.jbaraiya2204.mobile",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/images/icon.png"

@@ -73,22 +73,28 @@ export function PermissionRow({ permission, onSetStatus, isPending = false }: Pe
         <View style={styles.actions}>
           {!status.granted ? (
             <Pressable
-              style={[styles.actionBtn, { borderColor: `${c.safe}50` }]}
+              style={({ pressed }) => [
+                styles.actionBtn,
+                { borderColor: `${c.safe}50` },
+                pressed && { opacity: 0.75 },
+              ]}
               onPress={() => onSetStatus(permission.id, "granted")}
               accessibilityRole="button"
               accessibilityLabel={`Grant ${meta.label} to ${permission.appName}`}
-              activeOpacity={0.75}
             >
               <Feather name="check" size={13} color={c.safe} />
             </Pressable>
           ) : null}
           {status.granted || permission.status === "denied" ? (
             <Pressable
-              style={[styles.actionBtn, { borderColor: `${c.danger}50` }]}
+              style={({ pressed }) => [
+                styles.actionBtn,
+                { borderColor: `${c.danger}50` },
+                pressed && { opacity: 0.75 },
+              ]}
               onPress={() => onSetStatus(permission.id, "revoked")}
               accessibilityRole="button"
               accessibilityLabel={`Revoke ${meta.label} from ${permission.appName}`}
-              activeOpacity={0.75}
             >
               <Feather name="x" size={13} color={c.danger} />
             </Pressable>

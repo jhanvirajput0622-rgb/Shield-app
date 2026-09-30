@@ -8,10 +8,12 @@
     "owner": "jbaraiya2204",
     "slug": "shield-app",
     "android": {
-      "package": "com.jbaraiya2204.shieldapp"
+      "package": "com.jbaraiya2204.shieldapp",
+      "googleServicesFile": "./google-services.json"
     },
     "ios": {
       "bundleIdentifier": "com.jbaraiya2204.shieldapp",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }

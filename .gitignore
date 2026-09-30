@@ -50,3 +50,5 @@ atlas-credentials.env
 *.pem
 *.key
 *.cert
+*serviceAccount*.json
+*service-account*.json

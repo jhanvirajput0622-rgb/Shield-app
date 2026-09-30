@@ -1,4 +1,7 @@
-import { getApps, initializeApp } from "firebase-admin/app";
+import fs from "fs";
+import path from "path";
+import admin from "firebase-admin";
+import { getApps } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 
 /**
@@ -23,12 +26,42 @@ export type FirestoreStatus = "not_configured" | "connecting" | "connected" | "e
 
 let firestoreStatus: FirestoreStatus = "not_configured";
 
+export function resolveServiceAccount(): string | object | null {
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    try {
+      return JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT) as object;
+    } catch {
+      // Ignore parse failure; fallback to path candidates
+    }
+  }
+
+  const candidatePaths = [
+    process.env.GOOGLE_APPLICATION_CREDENTIALS,
+    process.env.FIREBASE_SERVICE_ACCOUNT_PATH,
+    path.resolve(process.cwd(), "serviceAccountKey.json"),
+    path.resolve(process.cwd(), "service-account.json"),
+    path.resolve(__dirname, "../../../serviceAccountKey.json"),
+    path.resolve(__dirname, "../../serviceAccountKey.json"),
+  ].filter(Boolean) as string[];
+
+  for (const candidate of candidatePaths) {
+    const resolved = path.isAbsolute(candidate) ? candidate : path.resolve(process.cwd(), candidate);
+    if (fs.existsSync(resolved)) {
+      return resolved;
+    }
+  }
+
+  return null;
+}
+
 export function isFirestoreConfigured(): boolean {
   return Boolean(
     process.env.FIRESTORE_EMULATOR_HOST ||
       process.env.FIREBASE_PROJECT_ID ||
       process.env.GOOGLE_CLOUD_PROJECT ||
-      process.env.GOOGLE_APPLICATION_CREDENTIALS
+      process.env.GOOGLE_APPLICATION_CREDENTIALS ||
+      process.env.FIREBASE_SERVICE_ACCOUNT_PATH ||
+      resolveServiceAccount()
   );
 }
 
@@ -39,7 +72,7 @@ export function getFirestoreStatus(): FirestoreStatus {
 export function initFirestore(): Firestore {
   if (!isFirestoreConfigured()) {
     throw new Error(
-      "Firebase Admin SDK is not configured. Set FIREBASE_PROJECT_ID or GOOGLE_APPLICATION_CREDENTIALS before enabling Firestore migration."
+      "Firebase Admin SDK is not configured. Set FIREBASE_PROJECT_ID, GOOGLE_APPLICATION_CREDENTIALS, or provide serviceAccountKey.json before enabling Firestore."
     );
   }
 
@@ -50,9 +83,25 @@ export function initFirestore(): Firestore {
     const projectId =
       process.env.FIREBASE_PROJECT_ID ??
       process.env.GOOGLE_CLOUD_PROJECT ??
-      (process.env.FIRESTORE_EMULATOR_HOST ? "demo-shield" : undefined);
+      (process.env.FIRESTORE_EMULATOR_HOST ? "demo-shield" : "shield-419e1");
 
-    initializeApp({ projectId });
+    const databaseURL =
+      process.env.FIREBASE_DATABASE_URL ??
+      `https://${projectId}-default-rtdb.firebaseio.com`;
+
+    const appOptions: admin.AppOptions = {
+      projectId,
+      databaseURL,
+    };
+
+    if (!process.env.FIRESTORE_EMULATOR_HOST) {
+      const sa = resolveServiceAccount();
+      if (sa) {
+        appOptions.credential = admin.credential.cert(sa as any);
+      }
+    }
+
+    admin.initializeApp(appOptions);
   }
 
   firestoreDb = getFirestore() as unknown as Firestore;

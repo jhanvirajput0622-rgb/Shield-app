@@ -43,12 +43,12 @@ import {
  * missing `.env` degrades to "wrong key" rather than "no app".
  */
 const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY ?? "AIzaSyDTNPxDTFRzn6KxAAM0c8hVRoRERUb01nI",
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY ?? "AIzaSyBYVQvBAOwibSe6v_tMCmM5kFnvO_65s_E",
   authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN ?? "shield-419e1.firebaseapp.com",
   projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID ?? "shield-419e1",
   storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET ?? "shield-419e1.firebasestorage.app",
   messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ?? "637825924445",
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID ?? "1:637825924445:android:1e8ad681e8f3018d8e7cb4",
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID ?? "1:637825924445:web:b5ba0d600b41457e8e7cb4",
 };
 
 let app: FirebaseApp | undefined;

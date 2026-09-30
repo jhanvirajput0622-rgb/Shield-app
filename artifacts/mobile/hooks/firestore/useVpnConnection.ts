@@ -193,7 +193,7 @@ export function useVpnConnection(): UseVpnConnectionResult {
       } catch (err: unknown) {
         // The `connecting` row may already be written. Mark it failed rather
         // than leaving a permanently-stuck tunnel in the user's history.
-        const attempted = activeRef.current;
+        const attempted = activeRef.current as { id: string; startedAt: number } | null;
         if (attempted) {
           await vpnConnections.markFailed(attempted.id).catch(() => {});
           activeRef.current = null;

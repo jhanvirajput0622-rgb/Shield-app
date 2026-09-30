@@ -121,11 +121,14 @@ export function SecurityLogCard({
 
       {isOpen && suggested && !isPending ? (
         <Pressable
-          style={[styles.actionBtn, { borderColor: `${tone}44` }]}
+          style={({ pressed }) => [
+            styles.actionBtn,
+            { borderColor: `${tone}44` },
+            pressed && { opacity: 0.75 },
+          ]}
           onPress={() => onSetStatus(log.id, suggested)}
           accessibilityRole="button"
           accessibilityLabel={`Mark "${log.eventType}" as ${STATUS_META[suggested].label}`}
-          activeOpacity={0.75}
         >
           <Feather
             name={TRIAGE_ACTIONS.find((a) => a.status === suggested)?.icon as "eye" | "check"}

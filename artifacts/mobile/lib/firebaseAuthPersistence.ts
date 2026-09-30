@@ -128,7 +128,7 @@ const asyncStoragePersistence: PersistenceInternal = {
  * through AsyncStorage's web shim (localStorage anyway) would add a failure
  * mode for no gain.
  */
-export const firebaseAuthPersistence: Persistence =
+export const firebaseAuthPersistence: Persistence | undefined =
   Platform.OS === "web" ? undefined : (asyncStoragePersistence as Persistence);
 
 /**

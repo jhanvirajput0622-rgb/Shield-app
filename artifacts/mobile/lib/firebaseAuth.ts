@@ -36,8 +36,10 @@
 
 import {
   createUserWithEmailAndPassword,
+  GoogleAuthProvider,
   onAuthStateChanged,
   signInAnonymously,
+  signInWithCredential,
   signInWithEmailAndPassword,
   signOut,
   type Auth,
@@ -46,6 +48,15 @@ import {
 
 import { getFirebaseAuth } from "./firebase";
 import { clearPersistedFirebaseSession } from "./firebaseAuthPersistence";
+
+/**
+ * Establish a Firebase Auth session using a Google ID token.
+ */
+export async function signInWithGoogleFirebase(idToken: string): Promise<User> {
+  const credential = GoogleAuthProvider.credential(idToken);
+  const result = await signInWithCredential(getFirebaseAuth(), credential);
+  return result.user;
+}
 
 /**
  * How the current Firebase session was established.

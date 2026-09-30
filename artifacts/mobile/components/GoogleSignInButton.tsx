@@ -1,5 +1,6 @@
 /**
- * "Continue with Google" button — used on the login and signup screens.
+ * "Sign in with Google" button — styled for the dark theme (#0b131a / #16222f / #2fe6c3).
+ * Links Google Sign-In credentials to Firebase Auth and the Shield API.
  */
 import React, { useState } from "react";
 import {
@@ -10,6 +11,7 @@ import {
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import colors from "@/constants/colors";
 import {
@@ -17,12 +19,11 @@ import {
   useGoogleAuth,
   idTokenFromResult,
 } from "@/lib/googleAuth";
+import { signInWithGoogleFirebase } from "@/lib/firebaseAuth";
 import { useGoogleLogin } from "@/hooks/useAuth";
 import { useAuthStore } from "@/store/authStore";
 
 const c = colors.dark;
-
-const GOOGLE_BLUE = "#4285F4";
 
 export function GoogleSignInButton() {
   if (!isGoogleAuthConfigured()) {
@@ -39,12 +40,16 @@ function UnconfiguredGoogleSignInButton() {
     <View style={styles.wrap}>
       <Pressable
         style={styles.button}
-        onPress={() => setError(
-          "Google sign-in isn't configured. Set EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID and GOOGLE_CLIENT_ID on the server."
-        )}
+        onPress={() =>
+          setError(
+            "Google sign-in is not configured. Set EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID and GOOGLE_CLIENT_ID on the server."
+          )
+        }
       >
-        <Text style={styles.googleG}>G</Text>
-        <Text style={styles.buttonText}>Continue with Google</Text>
+        <View style={styles.iconCircle}>
+          <Text style={styles.googleG}>G</Text>
+        </View>
+        <Text style={styles.buttonText}>Sign in with Google</Text>
       </Pressable>
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
     </View>
@@ -65,48 +70,50 @@ function ConfiguredGoogleSignInButton() {
 
     if (!isConfigured) {
       setError(
-        "Google sign-in isn't configured. Set EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID and GOOGLE_CLIENT_ID on the server."
+        "Google sign-in is not configured. Set EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID and GOOGLE_CLIENT_ID on the server."
       );
       return;
     }
     if (!request) {
-      setError("Google sign-in isn't ready yet. Please try again.");
+      setError("Google sign-in is initializing. Please try again.");
       return;
     }
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
       const authResult = await promptAsync();
-      // User cancelled/dismissed the Google sheet — do nothing.
       if (authResult?.type !== "success") return;
 
       const idToken = idTokenFromResult(authResult);
       if (!idToken) {
-        setError("Google sign-in didn't return a valid ID token. Please try again.");
+        setError("Google sign-in did not return an ID token. Please try again.");
         return;
       }
 
+      // 1. Link credentials to Firebase Auth
+      await signInWithGoogleFirebase(idToken).catch((fbErr: unknown) => {
+        console.warn("Firebase Google Auth warning:", fbErr);
+      });
+
+      // 2. Authenticate with Shield API
       const data = await googleLogin.mutateAsync({ idToken });
       setUser({
         id: data.user.id,
         email: data.user.email,
         displayName: data.user.displayName,
       });
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setSuccess("Signed in with Google. Opening Shield...");
       setTimeout(() => router.replace(data.isNewUser ? "/onboarding" : "/(tabs)"), 650);
     } catch (err: unknown) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       const message =
         err instanceof Error && err.message
           ? err.message
           : "Google sign-in failed. Please try again.";
-      if (/sign-in is not configured/i.test(message)) {
-        setError("Google sign-in isn't configured on the server.");
-      } else {
-        setError(message);
-      }
+      setError(message);
     }
   };
 
@@ -117,18 +124,20 @@ function ConfiguredGoogleSignInButton() {
           styles.button,
           pressed && styles.buttonPressed,
           googleLogin.isPending && styles.buttonDisabled,
-          success && styles.buttonDisabled,
+          Boolean(success) && styles.buttonDisabled,
         ]}
         onPress={handlePress}
         disabled={googleLogin.isPending || Boolean(success)}
       >
         {googleLogin.isPending ? (
-          <ActivityIndicator size="small" color={c.foreground} />
+          <ActivityIndicator size="small" color={c.primary} />
         ) : (
-          <Text style={styles.googleG}>G</Text>
+          <View style={styles.iconCircle}>
+            <Text style={styles.googleG}>G</Text>
+          </View>
         )}
         <Text style={styles.buttonText}>
-          {googleLogin.isPending ? "Signing in with Google..." : "Continue with Google"}
+          {googleLogin.isPending ? "Signing in with Google..." : "Sign in with Google"}
         </Text>
       </Pressable>
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -138,34 +147,50 @@ function ConfiguredGoogleSignInButton() {
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: 8 },
+  wrap: { gap: 8, marginVertical: 6 },
   button: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
-    backgroundColor: "#FFFFFF",
+    gap: 12,
+    backgroundColor: "#16222f",
+    borderColor: "#23374d",
+    borderWidth: 1,
     borderRadius: 14,
-    paddingVertical: 15,
+    paddingVertical: 14,
     paddingHorizontal: 16,
   },
-  buttonPressed: { opacity: 0.85 },
+  buttonPressed: {
+    backgroundColor: "#1e2d3d",
+    borderColor: c.primary,
+  },
   buttonDisabled: { opacity: 0.6 },
+  iconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(47, 230, 195, 0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   googleG: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: GOOGLE_BLUE,
-    width: 22,
-    textAlign: "center",
+    fontSize: 16,
+    fontWeight: "900",
+    color: c.primary,
   },
   buttonText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "700",
-    color: "#1F2937",
+    color: "#f1f5f9",
   },
   errorText: {
     fontSize: 12,
     color: c.danger,
+    textAlign: "center",
   },
-  successText: { fontSize: 12, color: c.safe, textAlign: "center" },
+  successText: {
+    fontSize: 12,
+    color: c.safe,
+    textAlign: "center",
+  },
 });

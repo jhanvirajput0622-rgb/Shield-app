@@ -1,7 +1,7 @@
 /**
  * Sign Up Screen — Shield mobile security app.
  */
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -19,7 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import colors from "@/constants/colors";
-import { useRegister, useRequestEmailOtp, useVerifyEmailOtp } from "@/hooks/useAuth";
+import { useRegister } from "@/hooks/useAuth";
 import { useAuthStore } from "@/store/authStore";
 import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 
@@ -83,7 +83,7 @@ function PasswordStrengthBar({ password }: { password: string }) {
 }
 
 const strengthStyles = StyleSheet.create({
-  wrap: { flexDirection: "row", alignItems: "center", gap: 8 },
+  wrap: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 },
   bars: { flexDirection: "row", gap: 4, flex: 1 },
   bar: { flex: 1, height: 4, borderRadius: 2 },
   label: { fontSize: 12, fontWeight: "600", width: 44 },
@@ -95,8 +95,6 @@ export default function SignupScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const register = useRegister();
-  const requestEmailOtp = useRequestEmailOtp();
-  const verifyEmailOtp = useVerifyEmailOtp();
   const { setUser } = useAuthStore();
 
   const [name, setName] = useState("");
@@ -106,18 +104,8 @@ export default function SignupScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [agreed, setAgreed] = useState(false);
-  const [emailOtp, setEmailOtp] = useState("");
-  const [emailOtpSent, setEmailOtpSent] = useState(false);
-  const [resendCountdown, setResendCountdown] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [touched, setTouched] = useState({ name: false, email: false, confirm: false });
-
-  useEffect(() => {
-    if (resendCountdown <= 0) return;
-    const timer = setTimeout(() => setResendCountdown((seconds) => seconds - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [resendCountdown]);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
@@ -140,11 +128,11 @@ export default function SignupScreen() {
     const validation = validateForm({ name, email, password, confirm, agreed });
     if (validation) {
       setError(validation);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       return;
     }
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
       const data = await register.mutateAsync({
@@ -161,62 +149,13 @@ export default function SignupScreen() {
         displayName: data.user.displayName,
       });
 
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      // New user — go through onboarding
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace("/onboarding");
     } catch (err: unknown) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       const message =
         err instanceof Error ? err.message : "Registration failed. Please try again.";
       setError(message);
-    }
-  };
-
-  const handleRequestEmailOtp = async () => {
-    setError(null);
-    setNotice(null);
-    if (!name.trim()) {
-      setError("Full name is required.");
-      return;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      setError("Enter a valid email address.");
-      return;
-    }
-    if (!agreed) {
-      setError("You must agree to the Terms & Privacy Policy.");
-      return;
-    }
-    try {
-      await requestEmailOtp.mutateAsync({ email: email.trim().toLowerCase(), name: name.trim() });
-      setEmailOtpSent(true);
-      setEmailOtp("");
-      setResendCountdown(60);
-      setNotice(`A verification code was sent to ${email.trim().toLowerCase()}.`);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Could not send the code. Try again.");
-    }
-  };
-
-  const handleVerifyEmailOtp = async () => {
-    setError(null);
-    setNotice(null);
-    if (!/^\d{6}$/.test(emailOtp)) {
-      setError("Enter the 6-digit code from your email.");
-      return;
-    }
-    try {
-      const data = await verifyEmailOtp.mutateAsync({
-        email: email.trim().toLowerCase(),
-        code: emailOtp,
-      });
-      setUser({ id: data.user.id, email: data.user.email, displayName: data.user.displayName });
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setNotice("Email verified. Opening Shield...");
-      setTimeout(() => router.replace(data.isNewUser ? "/onboarding" : "/(tabs)"), 650);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Code verification failed. Try again.");
     }
   };
 
@@ -233,7 +172,7 @@ export default function SignupScreen() {
         ]}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Brand */}
+        {/* Brand Header */}
         <View style={styles.brand}>
           <View style={styles.logoRing}>
             <Feather name="shield" size={32} color={c.primary} />
@@ -242,27 +181,21 @@ export default function SignupScreen() {
           <Text style={styles.tagline}>Create your secure account</Text>
         </View>
 
-        {/* Card */}
+        {/* Form Card */}
         <View style={styles.card}>
           <Text style={styles.cardEyebrow}>YOUR SECURITY STARTS HERE</Text>
           <Text style={styles.cardTitle}>Create your account</Text>
           <Text style={styles.cardSubtitle}>Set up your personal security command center.</Text>
 
-          {/* Error */}
+          {/* Error Banner */}
           {error && (
             <View style={styles.errorBanner}>
               <Feather name="alert-circle" size={14} color={c.danger} />
               <Text style={styles.errorText}>{error}</Text>
             </View>
           )}
-          {notice && (
-            <View style={styles.successBanner}>
-              <Feather name="check-circle" size={14} color={c.safe} />
-              <Text style={styles.successText}>{notice}</Text>
-            </View>
-          )}
 
-          {/* Full Name */}
+          {/* Full Name Field */}
           <Field
             icon="user"
             label="Full Name"
@@ -275,7 +208,7 @@ export default function SignupScreen() {
           />
           {nameError && <Text style={styles.fieldError}>{nameError}</Text>}
 
-          {/* Email */}
+          {/* Email Field */}
           <Field
             icon="mail"
             label="Email"
@@ -290,54 +223,13 @@ export default function SignupScreen() {
           />
           {emailError && <Text style={styles.fieldError}>{emailError}</Text>}
 
-          {!emailOtpSent ? (
-            <TouchableOpacity
-              style={[styles.secondaryBtn, (requestEmailOtp.isPending || !agreed) && styles.primaryBtnDisabled]}
-              onPress={handleRequestEmailOtp}
-              disabled={requestEmailOtp.isPending || !agreed}
-            >
-              {requestEmailOtp.isPending ? <ActivityIndicator size="small" color={c.foreground} /> : <Feather name="mail" size={17} color={c.foreground} />}
-              <Text style={styles.secondaryBtnText}>{requestEmailOtp.isPending ? "Sending code..." : "Sign up with an email code"}</Text>
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Email Verification Code</Text>
-              <View style={styles.inputWrap}>
-                <Feather name="key" size={16} color={c.textDisabled} style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  value={emailOtp}
-                  onChangeText={(value) => setEmailOtp(value.replace(/\D/g, "").slice(0, 6))}
-                  placeholder="6-digit code"
-                  placeholderTextColor={c.textDisabled}
-                  keyboardType="number-pad"
-                  maxLength={6}
-                  textContentType="oneTimeCode"
-                />
-              </View>
-              <TouchableOpacity
-                style={[styles.secondaryBtn, verifyEmailOtp.isPending && styles.primaryBtnDisabled]}
-                onPress={handleVerifyEmailOtp}
-                disabled={verifyEmailOtp.isPending}
-              >
-                {verifyEmailOtp.isPending ? <ActivityIndicator size="small" color={c.foreground} /> : <Feather name="check" size={17} color={c.foreground} />}
-                <Text style={styles.secondaryBtnText}>{verifyEmailOtp.isPending ? "Verifying..." : "Verify & Create Account"}</Text>
-              </TouchableOpacity>
-              <Pressable onPress={handleRequestEmailOtp} disabled={resendCountdown > 0 || requestEmailOtp.isPending} style={styles.centerAction}>
-                <Text style={[styles.signinLink, (resendCountdown > 0 || requestEmailOtp.isPending) && styles.disabledLink]}>
-                  {requestEmailOtp.isPending ? "Sending..." : resendCountdown > 0 ? `Resend code in 0:${String(resendCountdown).padStart(2, "0")}` : "Resend code"}
-                </Text>
-              </Pressable>
-            </View>
-          )}
-
-          {/* Password */}
+          {/* Password Field */}
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>Password</Text>
             <View style={styles.inputWrap}>
               <Feather name="lock" size={16} color={c.textDisabled} style={styles.inputIcon} />
               <TextInput
-                style={[styles.input, { paddingRight: 8 }]}
+                style={[styles.input, { paddingRight: 38 }]}
                 value={password}
                 onChangeText={setPassword}
                 placeholder="Min 8 characters"
@@ -360,13 +252,13 @@ export default function SignupScreen() {
             <PasswordStrengthBar password={password} />
           </View>
 
-          {/* Confirm Password */}
+          {/* Confirm Password Field */}
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>Confirm Password</Text>
             <View style={styles.inputWrap}>
               <Feather name="lock" size={16} color={c.textDisabled} style={styles.inputIcon} />
               <TextInput
-                style={[styles.input, { paddingRight: 8 }]}
+                style={[styles.input, { paddingRight: 38 }]}
                 value={confirm}
                 onChangeText={setConfirm}
                 placeholder="Repeat password"
@@ -387,7 +279,7 @@ export default function SignupScreen() {
                 />
               </TouchableOpacity>
             </View>
-            {confirmError && <Text style={styles.matchHint}>{confirmError}</Text>}
+            {confirmError && <Text style={styles.fieldError}>{confirmError}</Text>}
           </View>
 
           {/* Terms checkbox */}
@@ -395,7 +287,7 @@ export default function SignupScreen() {
             style={styles.checkRow}
             onPress={() => {
               setAgreed((v) => !v);
-              Haptics.selectionAsync();
+              void Haptics.selectionAsync();
             }}
             activeOpacity={0.8}
           >
@@ -413,7 +305,7 @@ export default function SignupScreen() {
             </Text>
           </TouchableOpacity>
 
-          {/* Submit */}
+          {/* Register Button */}
           <TouchableOpacity
             style={[
               styles.primaryBtn,
@@ -433,38 +325,55 @@ export default function SignupScreen() {
             </Text>
           </TouchableOpacity>
 
+          {/* Divider */}
           <View style={styles.dividerWrap}>
             <View style={styles.dividerLine} />
             <Text style={styles.dividerText}>OR</Text>
             <View style={styles.dividerLine} />
           </View>
-          <GoogleSignInButton />
 
+          {/* Google Sign-In */}
+          <GoogleSignInButton />
         </View>
 
-        {/* Sign in link */}
+        {/* Footer Link */}
         <Pressable
           style={styles.signinRow}
           onPress={() => router.push("/login")}
         >
           <Text style={styles.signinText}>Already have an account? </Text>
-          <Text style={styles.signinLink}>Sign In</Text>
+          <Text style={styles.signinLink}>Log in</Text>
         </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-// ─── Field sub-component ───────────────────────────────────────────────────────
+// ─── Input Field Component ─────────────────────────────────────────────────────
 
 function Field({
   icon,
   label,
-  ...props
+  value,
+  onChangeText,
+  placeholder,
+  keyboardType = "default",
+  autoCapitalize = "words",
+  autoComplete,
+  textContentType,
+  onBlur,
 }: {
   icon: keyof typeof Feather.glyphMap;
   label: string;
-} & React.ComponentProps<typeof TextInput>) {
+  value: string;
+  onChangeText: (v: string) => void;
+  placeholder: string;
+  keyboardType?: "default" | "email-address";
+  autoCapitalize?: "none" | "words" | "sentences";
+  autoComplete?: "name" | "email" | "off";
+  textContentType?: "name" | "emailAddress";
+  onBlur?: () => void;
+}) {
   return (
     <View style={styles.fieldGroup}>
       <Text style={styles.label}>{label}</Text>
@@ -472,99 +381,143 @@ function Field({
         <Feather name={icon} size={16} color={c.textDisabled} style={styles.inputIcon} />
         <TextInput
           style={styles.input}
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
           placeholderTextColor={c.textDisabled}
-          autoCapitalize="none"
-          autoCorrect={false}
-          {...props}
+          keyboardType={keyboardType}
+          autoCapitalize={autoCapitalize}
+          autoComplete={autoComplete}
+          textContentType={textContentType}
+          onBlur={onBlur}
         />
       </View>
     </View>
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: c.background },
-  container: { paddingHorizontal: 20, gap: 20, alignItems: "center" },
-  brand: { alignItems: "center", gap: 10, marginBottom: 4 },
+  flex: { flex: 1, backgroundColor: "#0b131a" },
+  container: { paddingHorizontal: 20 },
+  brand: { alignItems: "center", marginBottom: 24 },
   logoRing: {
-    width: 72,
-    height: 72,
-    borderRadius: 999,
-    backgroundColor: `${c.primary}18`,
-    borderWidth: 2,
-    borderColor: `${c.primary}40`,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "rgba(47, 230, 195, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(47, 230, 195, 0.3)",
     alignItems: "center",
     justifyContent: "center",
+    marginBottom: 12,
   },
   appName: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: "900",
-    color: c.foreground,
-    letterSpacing: 6,
+    letterSpacing: 4,
+    color: "#f1f5f9",
   },
-  tagline: { fontSize: 13, color: c.mutedForeground },
+  tagline: {
+    fontSize: 13,
+    color: "#94a3b8",
+    marginTop: 4,
+  },
   card: {
-    backgroundColor: c.surface,
+    backgroundColor: "#16222f",
     borderRadius: 20,
-    padding: 24,
-    gap: 16,
     borderWidth: 1,
-    borderColor: c.border,
-    width: "100%",
-    maxWidth: 520,
+    borderColor: "#23374d",
+    padding: 20,
+    gap: 14,
   },
-  cardEyebrow: { fontSize: 11, fontWeight: "700", color: c.primary, letterSpacing: 1.2 },
-  cardTitle: { fontSize: 26, fontWeight: "800", color: c.foreground },
-  cardSubtitle: { fontSize: 14, color: c.mutedForeground, marginTop: -8 },
+  cardEyebrow: {
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 1.5,
+    color: c.primary,
+  },
+  cardTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#f1f5f9",
+    marginTop: -8,
+  },
+  cardSubtitle: {
+    fontSize: 13,
+    color: "#94a3b8",
+    marginTop: -8,
+    marginBottom: 4,
+  },
   errorBanner: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: `${c.danger}15`,
-    borderRadius: 10,
-    padding: 12,
+    backgroundColor: "rgba(255, 77, 77, 0.12)",
+    borderColor: "rgba(255, 77, 77, 0.3)",
     borderWidth: 1,
-    borderColor: `${c.danger}30`,
+    borderRadius: 10,
+    padding: 10,
   },
-  errorText: { fontSize: 13, color: c.danger, flex: 1 },
-  successBanner: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: `${c.safe}15`, borderRadius: 10, padding: 12, borderWidth: 1, borderColor: `${c.safe}30` },
-  successText: { fontSize: 13, color: c.safe, flex: 1 },
-  fieldError: { fontSize: 12, color: c.danger, marginTop: -2 },
-  fieldGroup: { gap: 8 },
+  errorText: {
+    fontSize: 12,
+    color: c.danger,
+    flex: 1,
+  },
+  fieldGroup: { gap: 4 },
   label: {
     fontSize: 12,
     fontWeight: "600",
-    color: c.mutedForeground,
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
+    color: "#94a3b8",
   },
   inputWrap: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: c.elevated,
-    borderRadius: 12,
+    backgroundColor: "#0b131a",
+    borderColor: "#23374d",
     borderWidth: 1,
-    borderColor: c.border,
-    paddingHorizontal: 14,
-    paddingVertical: Platform.OS === "ios" ? 14 : 10,
-    gap: 10,
+    borderRadius: 12,
+    paddingHorizontal: 12,
   },
-  inputIcon: {},
-  input: { flex: 1, fontSize: 15, color: c.foreground, padding: 0 },
-  eyeBtn: { padding: 4 },
-  matchHint: { fontSize: 12, color: c.danger, fontWeight: "500" },
-  checkRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  inputIcon: { marginRight: 8 },
+  input: {
+    flex: 1,
+    height: 44,
+    color: "#f1f5f9",
+    fontSize: 14,
+  },
+  eyeBtn: { padding: 8, position: "absolute", right: 4 },
+  fieldError: {
+    fontSize: 11,
+    color: c.danger,
+    marginTop: -2,
+  },
+  checkRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginVertical: 4,
+  },
   checkbox: {
     width: 20,
     height: 20,
     borderRadius: 6,
-    borderWidth: 2,
-    borderColor: c.borderStrong,
+    borderWidth: 1.5,
+    borderColor: "#23374d",
+    backgroundColor: "#0b131a",
     alignItems: "center",
     justifyContent: "center",
   },
-  checkText: { flex: 1, fontSize: 13, color: c.mutedForeground, lineHeight: 18 },
-  checkLink: { color: c.primary, fontWeight: "600" },
+  checkText: {
+    fontSize: 12,
+    color: "#94a3b8",
+    flex: 1,
+  },
+  checkLink: {
+    color: c.primary,
+    fontWeight: "600",
+  },
   primaryBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -572,19 +525,28 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: c.primary,
     borderRadius: 14,
-    paddingVertical: 16,
+    paddingVertical: 14,
     marginTop: 4,
   },
-  primaryBtnDisabled: { opacity: 0.55 },
-  primaryBtnText: { fontSize: 16, fontWeight: "700", color: c.primaryForeground },
-  secondaryBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: c.elevated, borderWidth: 1, borderColor: c.borderStrong, borderRadius: 14, paddingVertical: 14 },
-  secondaryBtnText: { fontSize: 15, fontWeight: "700", color: c.foreground },
-  centerAction: { alignItems: "center", paddingVertical: 4 },
-  disabledLink: { opacity: 0.5 },
-  dividerWrap: { flexDirection: "row", alignItems: "center", gap: 12 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: c.border },
-  dividerText: { color: c.textDisabled, fontSize: 11, fontWeight: "700" },
-  signinRow: { flexDirection: "row", justifyContent: "center" },
-  signinText: { fontSize: 14, color: c.mutedForeground },
-  signinLink: { fontSize: 14, color: c.primary, fontWeight: "700" },
+  primaryBtnDisabled: { opacity: 0.5 },
+  primaryBtnText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: c.primaryForeground,
+  },
+  dividerWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginVertical: 4,
+  },
+  dividerLine: { flex: 1, height: 1, backgroundColor: "#23374d" },
+  dividerText: { fontSize: 11, fontWeight: "700", color: "#94a3b8" },
+  signinRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginTop: 20,
+  },
+  signinText: { fontSize: 13, color: "#94a3b8" },
+  signinLink: { fontSize: 13, fontWeight: "700", color: c.primary },
 });

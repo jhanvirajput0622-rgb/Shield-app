@@ -1,37 +1,120 @@
-type User @table {
-  displayName: String!
-  email: String!
-  avatarUrl: String
-  role: String
-}
-
-type Project @table {
+type Admin @table(name: "admins") {
+  id: UUID! @col(name: "admin_id", dataType: "uuid") @default(expr: "uuidV4()")
   name: String!
-  owner: User!
+  email: String! @col(dataType: "varchar(255)")
+  passwordHash: String! @col(name: "password_hash")
+  role: String!
+  createdAt: Timestamp! @col(name: "created_at") @default(expr: "request.time")
+  lastLogin: Timestamp @col(name: "last_login")
+}
+
+type User @table(name: "users") {
+  id: UUID! @col(name: "user_id", dataType: "uuid") @default(expr: "uuidV4()")
+  firebaseUid: String @col(name: "firebase_uid") @unique
+  name: String!
+  email: String! @col(dataType: "varchar(255)")
+  passwordHash: String @col(name: "password_hash")
+  phone: String
+  profilePic: String @col(name: "profile_pic")
+  role: String!
+  isActive: Boolean! @col(name: "is_active") @default(value: true)
+  createdAt: Timestamp! @col(name: "created_at") @default(expr: "request.time")
+  lastLogin: Timestamp @col(name: "last_login")
+}
+
+type Device @table(name: "devices") {
+  id: UUID! @col(name: "device_id", dataType: "uuid") @default(expr: "uuidV4()")
+  user: User!
+  deviceName: String! @col(name: "device_name")
+  osType: String! @col(name: "os_type")
+  deviceModel: String! @col(name: "device_model")
+  deviceIdHash: String! @col(name: "device_id_hash")
+  lastSeen: Timestamp @col(name: "last_seen")
+  isActive: Boolean! @col(name: "is_active") @default(value: true)
+  createdAt: Timestamp! @col(name: "created_at") @default(expr: "request.time")
+}
+
+type SecurityLog @table(name: "security_logs") {
+  id: UUID! @col(name: "log_id", dataType: "uuid") @default(expr: "uuidV4()")
+  user: User!
+  eventType: String! @col(name: "event_type")
   description: String
-  startDate: Date
-  endDate: Date
-}
-
-type Milestone @table {
-  title: String!
-  project: Project!
-  dueDate: Date
-  isCompleted: Boolean
-}
-
-type Task @table {
-  title: String!
+  ipAddress: String @col(name: "ip_address")
+  deviceInfo: String @col(name: "device_info")
+  timestamp: Timestamp! @default(expr: "request.time")
+  severity: String!
   status: String!
-  description: String
-  project: Project!
-  milestone: Milestone
-  assignedTo: User
 }
 
-type Comment @table {
-  content: String!
-  task: Task!
-  author: User!
-  createdAt: Timestamp
+type AntiTheft @table(name: "anti_theft") {
+  id: UUID! @col(name: "theft_id", dataType: "uuid") @default(expr: "uuidV4()")
+  user: User!
+  location: String
+  status: String!
+  actionTaken: String @col(name: "action_taken")
+  lockedAt: Timestamp @col(name: "locked_at")
+  createdAt: Timestamp! @col(name: "created_at") @default(expr: "request.time")
+}
+
+type PhishingDetection @table(name: "phishing_detection") {
+  id: UUID! @col(name: "phishing_id", dataType: "uuid") @default(expr: "uuidV4()")
+  user: User!
+  url: String!
+  riskScore: Int! @col(name: "risk_score")
+  status: String!
+  scannedAt: Timestamp! @col(name: "scanned_at") @default(expr: "request.time")
+  result: String!
+  createdAt: Timestamp! @col(name: "created_at") @default(expr: "request.time")
+}
+
+type VpnConnection @table(name: "vpn_connections") {
+  id: UUID! @col(name: "vpn_id", dataType: "uuid") @default(expr: "uuidV4()")
+  user: User!
+  serverLocation: String! @col(name: "server_location")
+  connectionStatus: String! @col(name: "connection_status")
+  ipAddress: String @col(name: "ip_address")
+  connectedAt: Timestamp! @col(name: "connected_at") @default(expr: "request.time")
+  disconnectedAt: Timestamp @col(name: "disconnected_at")
+  duration: Int
+}
+
+type AppPermission @table(name: "app_permissions") {
+  id: UUID! @col(name: "permission_id", dataType: "uuid") @default(expr: "uuidV4()")
+  user: User!
+  appName: String! @col(name: "app_name")
+  permissionType: String! @col(name: "permission_type")
+  status: String!
+  grantedAt: Timestamp! @col(name: "granted_at") @default(expr: "request.time")
+  revokedAt: Timestamp @col(name: "revoked_at")
+}
+
+type ProtectionSettings @table(name: "protection_settings") {
+  id: UUID! @col(name: "settings_id", dataType: "uuid") @default(expr: "uuidV4()")
+  user: User!
+  biometricEnabled: Boolean! @col(name: "biometric_enabled") @default(value: false)
+  autoLock: Int! @col(name: "auto_lock") @default(value: 300)
+  dataWipeEnabled: Boolean! @col(name: "data_wipe_enabled") @default(value: false)
+  backupEnabled: Boolean! @col(name: "backup_enabled") @default(value: true)
+  createdAt: Timestamp! @col(name: "created_at") @default(expr: "request.time")
+  updatedAt: Timestamp! @col(name: "updated_at") @default(expr: "request.time")
+}
+
+type AppSession @table(name: "app_sessions") {
+  id: UUID! @col(name: "session_id", dataType: "uuid") @default(expr: "uuidV4()")
+  user: User!
+  device: Device
+  loginTime: Timestamp! @col(name: "login_time") @default(expr: "request.time")
+  logoutTime: Timestamp @col(name: "logout_time")
+  ipAddress: String @col(name: "ip_address")
+  status: String!
+}
+
+type AuditEvent @table(name: "audit_events") {
+  id: UUID! @col(name: "event_id", dataType: "uuid") @default(expr: "uuidV4()")
+  admin: Admin
+  user: User
+  action: String!
+  target: String!
+  details: Any @col(dataType: "jsonb")
+  timestamp: Timestamp! @default(expr: "request.time")
 }

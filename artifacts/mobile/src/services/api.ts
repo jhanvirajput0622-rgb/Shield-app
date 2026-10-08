@@ -5,7 +5,8 @@
  * directly to Firestore. Every request is proxied through the
  * Node.js + Express backend.
  *
- * Base URL is read from EXPO_PUBLIC_API_URL (set in .env).
+ * Base URL comes from getBaseUrl() in lib/apiClient.ts (EXPO_PUBLIC_API_URL
+ * in .env, with Metro host auto-detect and a localhost fallback).
  * JWT access tokens are stored in SecureStore (native) / AsyncStorage (web).
  *
  * SECURITY:
@@ -14,15 +15,29 @@
  *   - Private device keys stay in SecureStore / iOS Keychain.
  */
 
-import { getToken, getRefreshToken, storeToken, storeRefreshToken, clearToken, clearRefreshToken } from "../../lib/apiClient";
+import {
+  getToken,
+  getRefreshToken,
+  storeToken,
+  storeRefreshToken,
+  clearToken,
+  clearRefreshToken,
+  getBaseUrl,
+} from "../../lib/apiClient";
 
 // ─── Base URL ─────────────────────────────────────────────────────────────────
 // Set EXPO_PUBLIC_API_URL in .env
 // Dev:  http://<your-lan-ip>:3001
 // Prod: https://api.yourshield.com
-const RAW_BASE = process.env.EXPO_PUBLIC_API_URL ?? "";
+//
+// NOTE: do NOT read process.env.EXPO_PUBLIC_API_URL directly here. Reading it
+// raw means an unset/blank value produces `""`, so every request URL becomes a
+// relative path ("/api/auth/login") — which native fetch cannot resolve and
+// rejects with "Network request failed" / "Cannot connect to API". getBaseUrl()
+// applies the same normalization, scheme repair and dev auto-detect as the
+// lib/apiClient.ts fetch path, so both clients always agree on one URL.
 
-export const getApiBaseUrl = (): string => RAW_BASE.replace(/\/+$/, "");
+export const getApiBaseUrl = (): string => getBaseUrl();
 
 // ─── Custom API error ─────────────────────────────────────────────────────────
 

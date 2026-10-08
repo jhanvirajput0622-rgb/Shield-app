@@ -9,7 +9,11 @@ import { requestLogger } from "./middleware/requestLogger.middleware";
 import { generalLimiter } from "./middleware/rateLimiter.middleware";
 import { errorHandler } from "./middleware/errorHandler.middleware";
 import { ApiError } from "./utils/ApiError";
-import { connectFirestore, getFirestoreStatus } from "./config/firestore";
+import {
+  connectFirestore,
+  getFirestoreStatus,
+  type FirestoreStatus,
+} from "./config/firestore";
 
 // ── Route imports ─────────────────────────────────────────────────────────────
 import authRoutes from "./routes/auth.routes";
@@ -100,8 +104,27 @@ app.get("/healthz", (_req: Request, res: Response) => {
 });
 
 // Full health check including Firestore connectivity — spec: GET /api/health
-app.get("/api/health", (_req: Request, res: Response) => {
-  const firestoreStatus = getFirestoreStatus();
+//
+// `firestoreStatus` is a cached value written by the single probe run at boot.
+// If Firestore comes up after the API (the normal dev order: emulators first,
+// then the server) or recovers from an outage, that cache says "error" forever
+// and this endpoint reports 503 while every real query succeeds — which sends
+// anyone debugging "cannot connect to API" in the wrong direction. Re-probe
+// whenever we are not known-good, bounded by a timeout so a hung database
+// cannot hang the probe itself.
+app.get("/api/health", async (_req: Request, res: Response) => {
+  let firestoreStatus = getFirestoreStatus();
+
+  if (firestoreStatus !== "connected" && firestoreStatus !== "connecting") {
+    const recheck = connectFirestore()
+      .then(() => getFirestoreStatus())
+      .catch(() => getFirestoreStatus());
+    const timedOut = new Promise<FirestoreStatus>((resolve) => {
+      setTimeout(() => resolve(getFirestoreStatus()), 3000);
+    });
+    firestoreStatus = await Promise.race([recheck, timedOut]);
+  }
+
   const firestoreConnected = firestoreStatus === "connected";
 
   res.status(firestoreConnected ? 200 : 503).json({

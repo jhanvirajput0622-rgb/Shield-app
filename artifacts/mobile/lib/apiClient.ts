@@ -15,6 +15,7 @@
 
 import { Platform } from "react-native";
 import Constants from "expo-constants";
+import * as Device from "expo-device";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   SECURE_KEYS,
@@ -66,6 +67,53 @@ function devHostFromExpo(): string | null {
 }
 
 /**
+ * Repair common hand-written mistakes in EXPO_PUBLIC_API_URL.
+ *
+ * "192.168.1.42:3001" or "api.myshield.com" are the two most common values,
+ * and both are invalid as a fetch base: without a scheme the request becomes
+ * a relative URL, which native fetch rejects with "Network request failed"
+ * before a packet is ever sent — indistinguishable from "server is down".
+ */
+function normaliseBaseUrl(raw: string): string | null {
+  const trimmed = raw.trim().replace(/\/+$/, "");
+  if (!trimmed) return null;
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `http://${trimmed}`;
+}
+
+/**
+ * Warn when the configured base URL cannot work on this runtime.
+ *
+ * Loopback addresses mean "this machine" — correct for iOS Simulator and web,
+ * but wrong for an Android emulator (needs 10.0.2.2) and impossible for a
+ * physical device. Surfacing it here turns a generic "Cannot connect to API"
+ * into a message that names the actual misconfiguration.
+ */
+function warnIfUnreachableBase(base: string): void {
+  if (!__DEV__) return;
+  try {
+    const host = new URL(base).hostname.toLowerCase();
+    if (!LOOPBACK_HOSTS.has(host)) return;
+    if (Platform.OS === "web") return;
+    if (Platform.OS === "android" && !Device.isDevice) {
+      console.warn(
+        `[apiClient] ${base} is loopback. Android emulators reach the host ` +
+          "machine at http://10.0.2.2:3001, not localhost. " +
+          "Set EXPO_PUBLIC_API_URL=http://10.0.2.2:3001 in .env."
+      );
+      return;
+    }
+    if (!Device.isDevice) return; // iOS Simulator: localhost is correct.
+    console.warn(
+      `[apiClient] ${base} is loopback, which a physical device cannot reach. ` +
+        "Set EXPO_PUBLIC_API_URL to this machine's LAN IP, e.g. " +
+        "http://192.168.1.42:3001 in .env (then restart Metro with -c)."
+    );
+  } catch {
+    // Invalid URL — reported by the caller instead.
+  }
+}
+
+/**
  * Resolve the backend base URL.
  *
  * Priority:
@@ -83,8 +131,15 @@ function devHostFromExpo(): string | null {
 export function getBaseUrl(): string {
   if (_resolvedBase !== null) return _resolvedBase;
 
-  const explicit = (_envBase || _envDomain).replace(/\/+$/, "");
+  const explicit = normaliseBaseUrl(_envBase || _envDomain);
   let base = explicit;
+
+  if (!explicit && (_envBase || _envDomain)) {
+    console.warn(
+      `[apiClient] EXPO_PUBLIC_API_URL="${_envBase || _envDomain}" is not a ` +
+        "valid URL — falling back to auto-detection."
+    );
+  }
 
   if (!base) {
     const host = devHostFromExpo();
@@ -100,6 +155,8 @@ export function getBaseUrl(): string {
       );
     }
   }
+
+  warnIfUnreachableBase(base);
 
   _resolvedBase = base;
   return base;
@@ -303,11 +360,13 @@ export async function apiFetch<T = unknown>(
     }
 
     const timedOut = err instanceof Error && err.name === "AbortError";
-    const detail = __DEV__
-      ? timedOut
-        ? ` (request timed out after ${REQUEST_TIMEOUT_MS / 1000}s — tried ${url})`
-        : ` (tried ${url})`
-      : "";
+    const reason = timedOut
+      ? `timed out after ${REQUEST_TIMEOUT_MS / 1000}s`
+      : "connection refused or unreachable";
+    // The base URL is public client config (it is inlined into the bundle as an
+    // EXPO_PUBLIC_* var anyway), so always showing it turns a generic
+    // "Cannot connect to API" into something that can be fixed in one step.
+    const detail = ` (${reason}; tried ${url}, base ${getBaseUrl()})`;
     throw new ShieldApiError(0, null, `${NETWORK_ERROR_MESSAGE}${detail}`);
   }
 

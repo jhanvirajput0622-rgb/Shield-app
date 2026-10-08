@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "f89dea29-2743-485b-b9c3-96bb6ecdb533",
+  "status": "current",
+  "command": "deliver",
+  "type": "sequence",
+  "input": "/home/jbaraiya2204/Shield-app/.archify/sequence-browser-api-cache-miss-20261008-213137/candidate.json",
+  "output": "/home/jbaraiya2204/Shield-app/.archify/sequence-browser-api-cache-miss-20261008-213137/browser-api-cache-miss.html",
+  "specification": {
+    "sha256": "c3b9c174318dec829f5e0a735cbb004e17c6a9a2b288ed90d54ececea239b92d",
+    "bytes": 1943
+  },
+  "artifact": {
+    "sha256": "3df62f09a0af24bfb4f8d91b46393480b6e0fe8ebb89c05a715cb230cb1110b7",
+    "bytes": 750813
+  }
+}

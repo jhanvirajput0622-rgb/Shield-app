@@ -85,17 +85,17 @@ exports.listUsers = function listUsers(dcOrOptions, options) {
 }
 ;
 
-const listSecurityLogsForUserRef = (dcOrVars, vars) => {
-  const { dc: dcInstance, vars: inputVars} = validateArgs(connectorConfig, dcOrVars, vars, true);
+const listSecurityLogsForUserRef = (dc) => {
+  const { dc: dcInstance} = validateArgs(connectorConfig, dc, undefined);
   dcInstance._useGeneratedSdk();
-  return queryRef(dcInstance, 'ListSecurityLogsForUser', inputVars);
+  return queryRef(dcInstance, 'ListSecurityLogsForUser');
 }
 listSecurityLogsForUserRef.operationName = 'ListSecurityLogsForUser';
 exports.listSecurityLogsForUserRef = listSecurityLogsForUserRef;
 
-exports.listSecurityLogsForUser = function listSecurityLogsForUser(dcOrVars, varsOrOptions, options) {
+exports.listSecurityLogsForUser = function listSecurityLogsForUser(dcOrOptions, options) {
   
-  const { dc: dcInstance, vars: inputVars, options: inputOpts } = validateArgsWithOptions(connectorConfig, dcOrVars, varsOrOptions, options, true, true);
+  const { dc: dcInstance, vars: inputVars, options: inputOpts } = validateArgsWithOptions(connectorConfig, dcOrOptions, options, undefined,false, false);
   return executeQuery(listSecurityLogsForUserRef(dcInstance, inputVars), inputOpts && { fetchPolicy: inputOpts.fetchPolicy });
 }
 ;

@@ -39,8 +39,8 @@ exports.useListUsers = function useListUsers(dcOrOptions, options) {
   return useDataConnectQuery(ref, inputOpts, CallerSdkTypeEnum.GeneratedReact);
 }
 
-exports.useListSecurityLogsForUser = function useListSecurityLogsForUser(dcOrVars, varsOrOptions, options) {
-  const { dc: dcInstance, vars: inputVars, options: inputOpts } = validateReactArgs(connectorConfig, dcOrVars, varsOrOptions, options, true, true);
-  const ref = listSecurityLogsForUserRef(dcInstance, inputVars);
+exports.useListSecurityLogsForUser = function useListSecurityLogsForUser(dcOrOptions, options) {
+  const { dc: dcInstance, options: inputOpts } = validateReactArgs(connectorConfig, dcOrOptions, options);
+  const ref = listSecurityLogsForUserRef(dcInstance);
   return useDataConnectQuery(ref, inputOpts, CallerSdkTypeEnum.GeneratedReact);
 }

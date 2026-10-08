@@ -142,7 +142,7 @@ To check the status of a Query, use the `UseQueryResult.status` field. You can a
 To access the data returned by a Query, use the `UseQueryResult.data` field. The data for the `GetUserById` Query is of type `GetUserByIdData`, which is defined in [dataconnect-generated/index.d.ts](../index.d.ts). It has the following fields:
 ```javascript
 export interface GetUserByIdData {
-  user?: {
+  users: ({
     id: UUIDString;
     name: string;
     email: string;
@@ -151,7 +151,7 @@ export interface GetUserByIdData {
     isActive: boolean;
     createdAt: TimestampString;
     lastLogin?: TimestampString | null;
-  } & User_Key;
+  } & User_Key)[];
 }
 ```
 
@@ -200,7 +200,7 @@ export default function GetUserByIdComponent() {
 
   // If the Query is successful, you can access the data returned using the `UseQueryResult.data` field.
   if (query.isSuccess) {
-    console.log(query.data.user);
+    console.log(query.data.users);
   }
   return <div>Query execution {query.isSuccess ? 'successful' : 'failed'}!</div>;
 }
@@ -286,21 +286,15 @@ export default function ListUsersComponent() {
 You can execute the `ListSecurityLogsForUser` Query using the following Query hook function, which is defined in [dataconnect-generated/react/index.d.ts](./index.d.ts):
 
 ```javascript
-useListSecurityLogsForUser(dc: DataConnect, vars: ListSecurityLogsForUserVariables, options?: useDataConnectQueryOptions<ListSecurityLogsForUserData>): UseDataConnectQueryResult<ListSecurityLogsForUserData, ListSecurityLogsForUserVariables>;
+useListSecurityLogsForUser(dc: DataConnect, options?: useDataConnectQueryOptions<ListSecurityLogsForUserData>): UseDataConnectQueryResult<ListSecurityLogsForUserData, undefined>;
 ```
 You can also pass in a `DataConnect` instance to the Query hook function.
 ```javascript
-useListSecurityLogsForUser(vars: ListSecurityLogsForUserVariables, options?: useDataConnectQueryOptions<ListSecurityLogsForUserData>): UseDataConnectQueryResult<ListSecurityLogsForUserData, ListSecurityLogsForUserVariables>;
+useListSecurityLogsForUser(options?: useDataConnectQueryOptions<ListSecurityLogsForUserData>): UseDataConnectQueryResult<ListSecurityLogsForUserData, undefined>;
 ```
 
 ### Variables
-The `ListSecurityLogsForUser` Query requires an argument of type `ListSecurityLogsForUserVariables`, which is defined in [dataconnect-generated/index.d.ts](../index.d.ts). It has the following fields:
-
-```javascript
-export interface ListSecurityLogsForUserVariables {
-  userId: UUIDString;
-}
-```
+The `ListSecurityLogsForUser` Query has no variables.
 ### Return Type
 Recall that calling the `ListSecurityLogsForUser` Query hook function returns a `UseQueryResult` object. This object holds the state of your Query, including whether the Query is loading, has completed, or has succeeded/failed, and any data returned by the Query, among other things.
 
@@ -326,33 +320,26 @@ To learn more about the `UseQueryResult` object, see the [TanStack React Query d
 
 ```javascript
 import { getDataConnect } from 'firebase/data-connect';
-import { connectorConfig, ListSecurityLogsForUserVariables } from '@dataconnect/generated';
+import { connectorConfig } from '@dataconnect/generated';
 import { useListSecurityLogsForUser } from '@dataconnect/generated/react'
 
 export default function ListSecurityLogsForUserComponent() {
-  // The `useListSecurityLogsForUser` Query hook requires an argument of type `ListSecurityLogsForUserVariables`:
-  const listSecurityLogsForUserVars: ListSecurityLogsForUserVariables = {
-    userId: ..., 
-  };
-
   // You don't have to do anything to "execute" the Query.
   // Call the Query hook function to get a `UseQueryResult` object which holds the state of your Query.
-  const query = useListSecurityLogsForUser(listSecurityLogsForUserVars);
-  // Variables can be defined inline as well.
-  const query = useListSecurityLogsForUser({ userId: ..., });
+  const query = useListSecurityLogsForUser();
 
   // You can also pass in a `DataConnect` instance to the Query hook function.
   const dataConnect = getDataConnect(connectorConfig);
-  const query = useListSecurityLogsForUser(dataConnect, listSecurityLogsForUserVars);
+  const query = useListSecurityLogsForUser(dataConnect);
 
   // You can also pass in a `useDataConnectQueryOptions` object to the Query hook function.
   const options = { staleTime: 5 * 1000 };
-  const query = useListSecurityLogsForUser(listSecurityLogsForUserVars, options);
+  const query = useListSecurityLogsForUser(options);
 
   // You can also pass both a `DataConnect` instance and a `useDataConnectQueryOptions` object.
   const dataConnect = getDataConnect(connectorConfig);
   const options = { staleTime: 5 * 1000 };
-  const query = useListSecurityLogsForUser(dataConnect, listSecurityLogsForUserVars, options);
+  const query = useListSecurityLogsForUser(dataConnect, options);
 
   // Then, you can render your component dynamically based on the status of the Query.
   if (query.isPending) {
@@ -412,10 +399,7 @@ The `InsertUser` Mutation requires an argument of type `InsertUserVariables`, wh
 ```javascript
 export interface InsertUserVariables {
   name: string;
-  email: string;
-  passwordHash: string;
   phone?: string | null;
-  role: string;
 }
 ```
 ### Return Type
@@ -466,14 +450,11 @@ export default function InsertUserComponent() {
   // The `useInsertUser` Mutation requires an argument of type `InsertUserVariables`:
   const insertUserVars: InsertUserVariables = {
     name: ..., 
-    email: ..., 
-    passwordHash: ..., 
     phone: ..., // optional
-    role: ..., 
   };
   mutation.mutate(insertUserVars);
   // Variables can be defined inline as well.
-  mutation.mutate({ name: ..., email: ..., passwordHash: ..., phone: ..., role: ..., });
+  mutation.mutate({ name: ..., phone: ..., });
 
   // You can also pass in a `useDataConnectMutationOptions` object to `UseMutationResult.mutate()`.
   const options = {

@@ -1,4 +1,4 @@
-import { InsertUserData, InsertUserVariables, InsertSecurityLogData, InsertSecurityLogVariables, InsertDeviceData, InsertDeviceVariables, GetUserByIdData, GetUserByIdVariables, ListUsersData, ListSecurityLogsForUserData, ListSecurityLogsForUserVariables } from '../';
+import { InsertUserData, InsertUserVariables, InsertSecurityLogData, InsertSecurityLogVariables, InsertDeviceData, InsertDeviceVariables, GetUserByIdData, GetUserByIdVariables, ListUsersData, ListSecurityLogsForUserData } from '../';
 import { UseDataConnectQueryResult, useDataConnectQueryOptions, UseDataConnectMutationResult, useDataConnectMutationOptions} from '@tanstack-query-firebase/react/data-connect';
 import { UseQueryResult, UseMutationResult} from '@tanstack/react-query';
 import { DataConnect } from 'firebase/data-connect';
@@ -20,5 +20,5 @@ export function useGetUserById(dc: DataConnect, vars: GetUserByIdVariables, opti
 export function useListUsers(options?: useDataConnectQueryOptions<ListUsersData>): UseDataConnectQueryResult<ListUsersData, undefined>;
 export function useListUsers(dc: DataConnect, options?: useDataConnectQueryOptions<ListUsersData>): UseDataConnectQueryResult<ListUsersData, undefined>;
 
-export function useListSecurityLogsForUser(vars: ListSecurityLogsForUserVariables, options?: useDataConnectQueryOptions<ListSecurityLogsForUserData>): UseDataConnectQueryResult<ListSecurityLogsForUserData, ListSecurityLogsForUserVariables>;
-export function useListSecurityLogsForUser(dc: DataConnect, vars: ListSecurityLogsForUserVariables, options?: useDataConnectQueryOptions<ListSecurityLogsForUserData>): UseDataConnectQueryResult<ListSecurityLogsForUserData, ListSecurityLogsForUserVariables>;
+export function useListSecurityLogsForUser(options?: useDataConnectQueryOptions<ListSecurityLogsForUserData>): UseDataConnectQueryResult<ListSecurityLogsForUserData, undefined>;
+export function useListSecurityLogsForUser(dc: DataConnect, options?: useDataConnectQueryOptions<ListSecurityLogsForUserData>): UseDataConnectQueryResult<ListSecurityLogsForUserData, undefined>;

@@ -42,7 +42,7 @@ export interface Device_Key {
 }
 
 export interface GetUserByIdData {
-  user?: {
+  users: ({
     id: UUIDString;
     name: string;
     email: string;
@@ -51,7 +51,7 @@ export interface GetUserByIdData {
     isActive: boolean;
     createdAt: TimestampString;
     lastLogin?: TimestampString | null;
-  } & User_Key;
+  } & User_Key)[];
 }
 
 export interface GetUserByIdVariables {
@@ -88,10 +88,7 @@ export interface InsertUserData {
 
 export interface InsertUserVariables {
   name: string;
-  email: string;
-  passwordHash: string;
   phone?: string | null;
-  role: string;
 }
 
 export interface ListSecurityLogsForUserData {
@@ -103,10 +100,6 @@ export interface ListSecurityLogsForUserData {
     status: string;
     timestamp: TimestampString;
   } & SecurityLog_Key)[];
-}
-
-export interface ListSecurityLogsForUserVariables {
-  userId: UUIDString;
 }
 
 export interface ListUsersData {
@@ -207,13 +200,13 @@ export function listUsers(dc: DataConnect, options?: ExecuteQueryOptions): Query
 
 interface ListSecurityLogsForUserRef {
   /* Allow users to create refs without passing in DataConnect */
-  (vars: ListSecurityLogsForUserVariables): QueryRef<ListSecurityLogsForUserData, ListSecurityLogsForUserVariables>;
+  (): QueryRef<ListSecurityLogsForUserData, undefined>;
   /* Allow users to pass in custom DataConnect instances */
-  (dc: DataConnect, vars: ListSecurityLogsForUserVariables): QueryRef<ListSecurityLogsForUserData, ListSecurityLogsForUserVariables>;
+  (dc: DataConnect): QueryRef<ListSecurityLogsForUserData, undefined>;
   operationName: string;
 }
 export const listSecurityLogsForUserRef: ListSecurityLogsForUserRef;
 
-export function listSecurityLogsForUser(vars: ListSecurityLogsForUserVariables, options?: ExecuteQueryOptions): QueryPromise<ListSecurityLogsForUserData, ListSecurityLogsForUserVariables>;
-export function listSecurityLogsForUser(dc: DataConnect, vars: ListSecurityLogsForUserVariables, options?: ExecuteQueryOptions): QueryPromise<ListSecurityLogsForUserData, ListSecurityLogsForUserVariables>;
+export function listSecurityLogsForUser(options?: ExecuteQueryOptions): QueryPromise<ListSecurityLogsForUserData, undefined>;
+export function listSecurityLogsForUser(dc: DataConnect, options?: ExecuteQueryOptions): QueryPromise<ListSecurityLogsForUserData, undefined>;
 

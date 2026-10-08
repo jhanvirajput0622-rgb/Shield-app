@@ -25,7 +25,7 @@ const { data, isPending, isSuccess, isError, error } = useGetUserById(getUserByI
 
 const { data, isPending, isSuccess, isError, error } = useListUsers();
 
-const { data, isPending, isSuccess, isError, error } = useListSecurityLogsForUser(listSecurityLogsForUserVars);
+const { data, isPending, isSuccess, isError, error } = useListSecurityLogsForUser();
 
 ```
 
@@ -82,8 +82,8 @@ const { data } = await GetUserById(dataConnect, getUserByIdVars);
 // Operation ListUsers: 
 const { data } = await ListUsers(dataConnect);
 
-// Operation ListSecurityLogsForUser:  For variables, look at type ListSecurityLogsForUserVars in ../index.d.ts
-const { data } = await ListSecurityLogsForUser(dataConnect, listSecurityLogsForUserVars);
+// Operation ListSecurityLogsForUser: 
+const { data } = await ListSecurityLogsForUser(dataConnect);
 
 
 ```

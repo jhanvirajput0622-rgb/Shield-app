@@ -10,8 +10,8 @@
 | [guides/AUTH.md](./guides/AUTH.md) | Authentication system deep-dive |
 | [guides/MOBILE.md](./guides/MOBILE.md) | Mobile app architecture, screens, hooks, state |
 | [architecture/OVERVIEW.md](./architecture/OVERVIEW.md) | System architecture, data flow, security model |
-| [architecture/DATABASE.md](./architecture/DATABASE.md) | Firestore collections, documents, and relationships |
-| [FIREBASE.md](./FIREBASE.md) | Firebase integration rules, query layer, cursors, and known schema drift |
+| [architecture/DATABASE.md](./architecture/DATABASE.md) | Firestore schema, collections, indexes, relationships |
+| [architecture/REQUEST_FLOW.md](./architecture/REQUEST_FLOW.md) | **Complete request flow diagrams — every layer annotated** |
 | [api/REFERENCE.md](./api/REFERENCE.md) | Complete REST API reference |
 | [api/ERRORS.md](./api/ERRORS.md) | Error codes, response shapes, troubleshooting |
 
@@ -20,7 +20,7 @@
 ```
 Shield-app/
 ├── artifacts/mobile/      ← Expo React Native app (TypeScript)
-├── server/                ← Express + Firebase Firestore backend (TypeScript)
+├── server/                ← Express + Firestore backend (TypeScript)
 ├── lib/
 │   ├── api-clients-react/ ← Orval-generated TanStack Query hooks
 │   ├── api-spec/          ← OpenAPI 0.1.0 spec (source for codegen)

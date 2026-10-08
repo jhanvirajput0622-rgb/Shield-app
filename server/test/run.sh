@@ -85,8 +85,21 @@ echo "→ Starting Firestore emulator and running suite"
 # `emulators:exec` is invoked from the repo root because that is where
 # firebase.json, firestore.rules and firestore.indexes.json live. The compiled
 # tests live under server/dist-test.
+#
+# The trailing `dist-test/test/` directory used to be passed straight to
+# `node --test`, which does not work: Node treats an explicitly-passed path as a
+# single entry to execute rather than as a search root, so it tried to `require`
+# the directory itself and died with
+#   Error: Cannot find module '.../dist-test/test'
+# (and under emulators:exec, with the repo root as cwd, it failed even earlier
+# with `Cannot find module '.../--test'`). Passing an explicit glob of the
+# compiled test files works on every Node version this repo supports and matches
+# what the suite was verified against.
+#
+# `dist-test/test/*.test.js` deliberately excludes `helpers/`, which is support
+# code -- `helpers/env.js` throws on import unless the emulator is already up.
 firebase emulators:exec \
   --only firestore \
   --project "${FIREBASE_PROJECT_ID}" \
   --config "${REPO_ROOT}/firebase.json" \
-  "node --test --test-concurrency=1 ${SERVER_DIR}/dist-test/test/"
+  "node --test --test-concurrency=1 ${SERVER_DIR}/dist-test/test/*.test.js"

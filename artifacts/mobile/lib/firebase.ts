@@ -94,7 +94,7 @@ export function ensureFirebaseInitialized(): {
     auth = firebaseAuthPersistence
       ? initializeAuth(app, { persistence: firebaseAuthPersistence })
       : getAuth(app);
-    db = getFirestore(app);
+    db = getFirestore(app, "shield");
     connectEmulators(auth, db);
   }
 

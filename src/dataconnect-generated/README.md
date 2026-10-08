@@ -106,7 +106,7 @@ Recall that executing the `GetUserById` query returns a `QueryPromise` that reso
 The `data` property is an object of type `GetUserByIdData`, which is defined in [dataconnect-generated/index.d.ts](./index.d.ts). It has the following fields:
 ```typescript
 export interface GetUserByIdData {
-  user?: {
+  users: ({
     id: UUIDString;
     name: string;
     email: string;
@@ -115,7 +115,7 @@ export interface GetUserByIdData {
     isActive: boolean;
     createdAt: TimestampString;
     lastLogin?: TimestampString | null;
-  } & User_Key;
+  } & User_Key)[];
 }
 ```
 ### Using `GetUserById`'s action shortcut function
@@ -139,12 +139,12 @@ const { data } = await getUserById({ id: ..., });
 const dataConnect = getDataConnect(connectorConfig);
 const { data } = await getUserById(dataConnect, getUserByIdVars);
 
-console.log(data.user);
+console.log(data.users);
 
 // Or, you can use the `Promise` API.
 getUserById(getUserByIdVars).then((response) => {
   const data = response.data;
-  console.log(data.user);
+  console.log(data.users);
 });
 ```
 
@@ -172,12 +172,12 @@ const ref = getUserByIdRef(dataConnect, getUserByIdVars);
 // You can use the `await` keyword to wait for the promise to resolve.
 const { data } = await executeQuery(ref);
 
-console.log(data.user);
+console.log(data.users);
 
 // Or, you can use the `Promise` API.
 executeQuery(ref).then((response) => {
   const data = response.data;
-  console.log(data.user);
+  console.log(data.users);
 });
 ```
 
@@ -282,22 +282,22 @@ executeQuery(ref).then((response) => {
 ## ListSecurityLogsForUser
 You can execute the `ListSecurityLogsForUser` query using the following action shortcut function, or by calling `executeQuery()` after calling the following `QueryRef` function, both of which are defined in [dataconnect-generated/index.d.ts](./index.d.ts):
 ```typescript
-listSecurityLogsForUser(vars: ListSecurityLogsForUserVariables, options?: ExecuteQueryOptions): QueryPromise<ListSecurityLogsForUserData, ListSecurityLogsForUserVariables>;
+listSecurityLogsForUser(options?: ExecuteQueryOptions): QueryPromise<ListSecurityLogsForUserData, undefined>;
 
 interface ListSecurityLogsForUserRef {
   ...
   /* Allow users to create refs without passing in DataConnect */
-  (vars: ListSecurityLogsForUserVariables): QueryRef<ListSecurityLogsForUserData, ListSecurityLogsForUserVariables>;
+  (): QueryRef<ListSecurityLogsForUserData, undefined>;
 }
 export const listSecurityLogsForUserRef: ListSecurityLogsForUserRef;
 ```
 You can also pass in a `DataConnect` instance to the action shortcut function or `QueryRef` function.
 ```typescript
-listSecurityLogsForUser(dc: DataConnect, vars: ListSecurityLogsForUserVariables, options?: ExecuteQueryOptions): QueryPromise<ListSecurityLogsForUserData, ListSecurityLogsForUserVariables>;
+listSecurityLogsForUser(dc: DataConnect, options?: ExecuteQueryOptions): QueryPromise<ListSecurityLogsForUserData, undefined>;
 
 interface ListSecurityLogsForUserRef {
   ...
-  (dc: DataConnect, vars: ListSecurityLogsForUserVariables): QueryRef<ListSecurityLogsForUserData, ListSecurityLogsForUserVariables>;
+  (dc: DataConnect): QueryRef<ListSecurityLogsForUserData, undefined>;
 }
 export const listSecurityLogsForUserRef: ListSecurityLogsForUserRef;
 ```
@@ -309,13 +309,7 @@ console.log(name);
 ```
 
 ### Variables
-The `ListSecurityLogsForUser` query requires an argument of type `ListSecurityLogsForUserVariables`, which is defined in [dataconnect-generated/index.d.ts](./index.d.ts). It has the following fields:
-
-```typescript
-export interface ListSecurityLogsForUserVariables {
-  userId: UUIDString;
-}
-```
+The `ListSecurityLogsForUser` query has no variables.
 ### Return Type
 Recall that executing the `ListSecurityLogsForUser` query returns a `QueryPromise` that resolves to an object with a `data` property.
 
@@ -336,27 +330,21 @@ export interface ListSecurityLogsForUserData {
 
 ```typescript
 import { getDataConnect } from 'firebase/data-connect';
-import { connectorConfig, listSecurityLogsForUser, ListSecurityLogsForUserVariables } from '@dataconnect/generated';
+import { connectorConfig, listSecurityLogsForUser } from '@dataconnect/generated';
 
-// The `ListSecurityLogsForUser` query requires an argument of type `ListSecurityLogsForUserVariables`:
-const listSecurityLogsForUserVars: ListSecurityLogsForUserVariables = {
-  userId: ..., 
-};
 
 // Call the `listSecurityLogsForUser()` function to execute the query.
 // You can use the `await` keyword to wait for the promise to resolve.
-const { data } = await listSecurityLogsForUser(listSecurityLogsForUserVars);
-// Variables can be defined inline as well.
-const { data } = await listSecurityLogsForUser({ userId: ..., });
+const { data } = await listSecurityLogsForUser();
 
 // You can also pass in a `DataConnect` instance to the action shortcut function.
 const dataConnect = getDataConnect(connectorConfig);
-const { data } = await listSecurityLogsForUser(dataConnect, listSecurityLogsForUserVars);
+const { data } = await listSecurityLogsForUser(dataConnect);
 
 console.log(data.securityLogs);
 
 // Or, you can use the `Promise` API.
-listSecurityLogsForUser(listSecurityLogsForUserVars).then((response) => {
+listSecurityLogsForUser().then((response) => {
   const data = response.data;
   console.log(data.securityLogs);
 });
@@ -366,21 +354,15 @@ listSecurityLogsForUser(listSecurityLogsForUserVars).then((response) => {
 
 ```typescript
 import { getDataConnect, executeQuery } from 'firebase/data-connect';
-import { connectorConfig, listSecurityLogsForUserRef, ListSecurityLogsForUserVariables } from '@dataconnect/generated';
+import { connectorConfig, listSecurityLogsForUserRef } from '@dataconnect/generated';
 
-// The `ListSecurityLogsForUser` query requires an argument of type `ListSecurityLogsForUserVariables`:
-const listSecurityLogsForUserVars: ListSecurityLogsForUserVariables = {
-  userId: ..., 
-};
 
 // Call the `listSecurityLogsForUserRef()` function to get a reference to the query.
-const ref = listSecurityLogsForUserRef(listSecurityLogsForUserVars);
-// Variables can be defined inline as well.
-const ref = listSecurityLogsForUserRef({ userId: ..., });
+const ref = listSecurityLogsForUserRef();
 
 // You can also pass in a `DataConnect` instance to the `QueryRef` function.
 const dataConnect = getDataConnect(connectorConfig);
-const ref = listSecurityLogsForUserRef(dataConnect, listSecurityLogsForUserVars);
+const ref = listSecurityLogsForUserRef(dataConnect);
 
 // Call `executeQuery()` on the reference to execute the query.
 // You can use the `await` keyword to wait for the promise to resolve.
@@ -445,10 +427,7 @@ The `InsertUser` mutation requires an argument of type `InsertUserVariables`, wh
 ```typescript
 export interface InsertUserVariables {
   name: string;
-  email: string;
-  passwordHash: string;
   phone?: string | null;
-  role: string;
 }
 ```
 ### Return Type
@@ -469,17 +448,14 @@ import { connectorConfig, insertUser, InsertUserVariables } from '@dataconnect/g
 // The `InsertUser` mutation requires an argument of type `InsertUserVariables`:
 const insertUserVars: InsertUserVariables = {
   name: ..., 
-  email: ..., 
-  passwordHash: ..., 
   phone: ..., // optional
-  role: ..., 
 };
 
 // Call the `insertUser()` function to execute the mutation.
 // You can use the `await` keyword to wait for the promise to resolve.
 const { data } = await insertUser(insertUserVars);
 // Variables can be defined inline as well.
-const { data } = await insertUser({ name: ..., email: ..., passwordHash: ..., phone: ..., role: ..., });
+const { data } = await insertUser({ name: ..., phone: ..., });
 
 // You can also pass in a `DataConnect` instance to the action shortcut function.
 const dataConnect = getDataConnect(connectorConfig);
@@ -503,16 +479,13 @@ import { connectorConfig, insertUserRef, InsertUserVariables } from '@dataconnec
 // The `InsertUser` mutation requires an argument of type `InsertUserVariables`:
 const insertUserVars: InsertUserVariables = {
   name: ..., 
-  email: ..., 
-  passwordHash: ..., 
   phone: ..., // optional
-  role: ..., 
 };
 
 // Call the `insertUserRef()` function to get a reference to the mutation.
 const ref = insertUserRef(insertUserVars);
 // Variables can be defined inline as well.
-const ref = insertUserRef({ name: ..., email: ..., passwordHash: ..., phone: ..., role: ..., });
+const ref = insertUserRef({ name: ..., phone: ..., });
 
 // You can also pass in a `DataConnect` instance to the `MutationRef` function.
 const dataConnect = getDataConnect(connectorConfig);

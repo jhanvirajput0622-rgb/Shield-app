@@ -14,38 +14,26 @@ If a user is not using a supported framework, they can use the generated SDK dir
 Here's an example of how to use it with the first 5 operations:
 
 ```js
-import { insertUser, updateUser, deleteUser, getCurrentUser, listUsers, insertProject, updateProject, deleteProject, getProject, listMyProjects } from '@dataconnect/generated';
+import { insertUser, insertSecurityLog, insertDevice, getUserById, listUsers, listSecurityLogsForUser } from '@dataconnect/generated';
 
 
-// Operation InsertUser: 
-const { data } = await InsertUser(dataConnect);
+// Operation InsertUser:  For variables, look at type InsertUserVars in ../index.d.ts
+const { data } = await InsertUser(dataConnect, insertUserVars);
 
-// Operation UpdateUser:  For variables, look at type UpdateUserVars in ../index.d.ts
-const { data } = await UpdateUser(dataConnect, updateUserVars);
+// Operation InsertSecurityLog:  For variables, look at type InsertSecurityLogVars in ../index.d.ts
+const { data } = await InsertSecurityLog(dataConnect, insertSecurityLogVars);
 
-// Operation DeleteUser: 
-const { data } = await DeleteUser(dataConnect);
+// Operation InsertDevice:  For variables, look at type InsertDeviceVars in ../index.d.ts
+const { data } = await InsertDevice(dataConnect, insertDeviceVars);
 
-// Operation GetCurrentUser: 
-const { data } = await GetCurrentUser(dataConnect);
+// Operation GetUserById:  For variables, look at type GetUserByIdVars in ../index.d.ts
+const { data } = await GetUserById(dataConnect, getUserByIdVars);
 
 // Operation ListUsers: 
 const { data } = await ListUsers(dataConnect);
 
-// Operation InsertProject:  For variables, look at type InsertProjectVars in ../index.d.ts
-const { data } = await InsertProject(dataConnect, insertProjectVars);
-
-// Operation UpdateProject:  For variables, look at type UpdateProjectVars in ../index.d.ts
-const { data } = await UpdateProject(dataConnect, updateProjectVars);
-
-// Operation DeleteProject:  For variables, look at type DeleteProjectVars in ../index.d.ts
-const { data } = await DeleteProject(dataConnect, deleteProjectVars);
-
-// Operation GetProject:  For variables, look at type GetProjectVars in ../index.d.ts
-const { data } = await GetProject(dataConnect, getProjectVars);
-
-// Operation ListMyProjects: 
-const { data } = await ListMyProjects(dataConnect);
+// Operation ListSecurityLogsForUser: 
+const { data } = await ListSecurityLogsForUser(dataConnect);
 
 
 ```

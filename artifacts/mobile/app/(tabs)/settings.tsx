@@ -113,7 +113,7 @@ export default function SettingsScreen() {
       await logout();
       setShowDeleteSheet(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      router.replace("/");
+      router.replace("/login");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to delete account";
       setDeleteError(msg);
@@ -319,7 +319,7 @@ export default function SettingsScreen() {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           try {
             await logout();
-            router.replace("/");
+            router.replace("/login");
           } catch {
             Alert.alert("Unable to log out", "Please try again.");
           }

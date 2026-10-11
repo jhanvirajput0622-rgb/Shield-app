@@ -21,6 +21,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import colors from "@/constants/colors";
 import { useResetPassword } from "@/hooks/useAuth";
+import { useObserveInteractive } from "@/hooks/useObserveInteractive";
 
 const c = colors.dark;
 
@@ -61,6 +62,8 @@ const barStyles = StyleSheet.create({
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 export default function ResetPasswordScreen() {
+  useObserveInteractive();
+
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const params = useLocalSearchParams<{ email?: string }>();

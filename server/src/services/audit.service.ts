@@ -8,42 +8,9 @@
  *   - The public `summary` field is safe to show in audit trail UIs.
  */
 
-import crypto from "crypto";
 import { AuditLog, AuditAction, IAuditLog } from "../models/AuditLog";
 import { logger } from "../utils/logger";
-
-// ─── Encryption helpers ───────────────────────────────────────────────────────
-
-const ALGORITHM = "aes-256-gcm";
-const IV_LENGTH = 12; // 96-bit IV recommended for GCM
-const TAG_LENGTH = 16;
-
-function getEncryptionKey(): Buffer {
-  const raw = process.env.ENCRYPTION_KEY ?? "";
-  if (!raw) {
-    // Fall back to a deterministic dev key — NOT secure for production
-    logger.warn("ENCRYPTION_KEY not set — using dev fallback (NOT for production)");
-    return Buffer.alloc(32, "shield_dev_key_00000000000000000");
-  }
-  const key = Buffer.from(raw, "hex");
-  if (key.length !== 32) {
-    throw new Error("ENCRYPTION_KEY must be 64 hex characters (32 bytes)");
-  }
-  return key;
-}
-
-function encryptDetails(plaintext: string): string {
-  const key = getEncryptionKey();
-  const iv = crypto.randomBytes(IV_LENGTH);
-  const cipher = crypto.createCipheriv(ALGORITHM, key, iv) as crypto.CipherGCM;
-  const encrypted = Buffer.concat([
-    cipher.update(plaintext, "utf8"),
-    cipher.final(),
-  ]);
-  const tag = cipher.getAuthTag();
-  // Layout: [iv (12)] [tag (16)] [ciphertext]
-  return Buffer.concat([iv, tag, encrypted]).toString("base64");
-}
+import { encryptDetails } from "./encryption.service";
 
 // ─── Service ──────────────────────────────────────────────────────────────────
 

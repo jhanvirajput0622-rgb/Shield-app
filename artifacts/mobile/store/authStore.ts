@@ -67,22 +67,19 @@ export async function clearUser(): Promise<void> {
  *   4. On failure, clear tokens and fall through to login guard.
  */
 export async function rehydrate(): Promise<void> {
-  const rememberMe = await getRememberMe();
-  if (!rememberMe) {
-    // User explicitly opted out of persistent sessions
-    await clearUser();
-    return;
-  }
-
-  const token = await getToken();
-  if (!token) {
-    _user = null;
-    _loading = false;
-    notify();
-    return;
-  }
-
   try {
+    const rememberMe = await getRememberMe();
+    if (!rememberMe) {
+      await clearUser();
+      return;
+    }
+
+    const token = await getToken();
+    if (!token) {
+      _user = null;
+      return;
+    }
+
     const res = await apiFetch<{ success: boolean; data: AuthUser }>(
       "/api/auth/me"
     );
@@ -104,8 +101,6 @@ export async function rehydrate(): Promise<void> {
       "status" in err &&
       (err as { status?: number }).status === 0
     ) {
-      _loading = false;
-      notify();
       return;
     }
     // Token invalid or expired — silent refresh will be attempted by apiFetch
@@ -113,10 +108,10 @@ export async function rehydrate(): Promise<void> {
     _user = null;
     await clearToken().catch(() => {});
     await clearRefreshToken().catch(() => {});
+  } finally {
+    _loading = false;
+    notify();
   }
-
-  _loading = false;
-  notify();
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -127,6 +122,7 @@ export function useAuthStore() {
   useEffect(() => {
     const listener: Listener = () => forceRender((n) => n + 1);
     _listeners.add(listener);
+    forceRender((n) => n + 1);
     return () => {
       _listeners.delete(listener);
     };

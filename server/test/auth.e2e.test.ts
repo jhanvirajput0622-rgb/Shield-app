@@ -319,7 +319,8 @@ describe("2FA", () => {
     assert.match(String(data(setup).qrCode), /^data:image\/png;base64,/, "expected a QR data URI");
 
     const pending = await readRaw("users", user.id);
-    assert.equal(pending?.["twoFactorSecret"], secret, "the pending secret must be persisted");
+    assert.equal(typeof pending?.["twoFactorSecret"], "string");
+    assert.notEqual(pending?.["twoFactorSecret"], secret, "the pending seed must be encrypted at rest");
     assert.notEqual(pending?.["twoFactorEnabled"], true, "setup alone must not enable 2FA");
 
     // ── verify: a real TOTP code enables 2FA and clears the pending secret ──

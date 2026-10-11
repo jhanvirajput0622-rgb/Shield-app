@@ -42,7 +42,8 @@
       "googleServicesFile": "./google-services.json"
     },
     "web": {
-      "favicon": "./assets/images/icon.png"
+      "favicon": "./assets/images/icon.png",
+      "output": "server"
     },
     "plugins": [
       [
@@ -80,6 +81,6 @@
         "projectId": "f56d6edb-b361-4c89-84d6-aace6fdc34a9"
       }
     },
-    "owner": "jbaraiya2204"
+    "owner": "jbaraiya2204s-team"
   }
 }

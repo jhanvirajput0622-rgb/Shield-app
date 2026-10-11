@@ -25,6 +25,7 @@ import {
 } from "@/lib/utils";
 import { useDashboard, DashboardStats } from "@/hooks/useDashboard";
 import { useDbHealth } from "@/hooks/useDbHealth";
+import { useObserveInteractive } from "@/hooks/useObserveInteractive";
 import { isNetworkUnreachable } from "@/lib/apiClient";
 
 /**
@@ -137,6 +138,8 @@ function ModuleStatusCard({
 }
 
 export default function DashboardScreen() {
+  useObserveInteractive();
+
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { hasOnboarded } = useApp();
@@ -160,7 +163,7 @@ export default function DashboardScreen() {
 
   const serverUnreachable = isNetworkUnreachable(error);
   const display = s ?? DASHBOARD_FALLBACK;
-  const showStatusBanner = isError || !s;
+  const showStatusBanner = isError || (!s && !isLoading);
 
   const {
     data: health,
@@ -175,7 +178,7 @@ export default function DashboardScreen() {
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
-  if (hasOnboarded === null || isLoading) return <LoadingState />;
+  if (hasOnboarded === null) return <LoadingState />;
 
   const statusColor = overallStatusColor(display.overall || "protected");
   const statusLabel = overallStatusLabel(display.overall || "protected");

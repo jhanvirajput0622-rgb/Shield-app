@@ -13,6 +13,11 @@ import { signAccessToken } from "../middleware/auth.middleware";
 import { logger } from "../utils/logger";
 import { authenticator } from "otplib";
 import qrcode from "qrcode";
+import {
+  decryptTotpSecret,
+  encryptTotpSecret,
+  isTotpSecretEncrypted,
+} from "./encryption.service";
 
 // ─── Duration helpers ─────────────────────────────────────────────────────────
 
@@ -134,7 +139,7 @@ export class UserService {
       if (!authenticatorOtp) {
         throw new ApiError(401, "MFA_REQUIRED");
       }
-      if (!user.twoFactorSecret || !authenticator.verify({ token: authenticatorOtp, secret: user.twoFactorSecret })) {
+      if (!user.twoFactorSecret || !authenticator.verify({ token: authenticatorOtp, secret: decryptTotpSecret(user.twoFactorSecret) })) {
         challenge.attempts += 1;
         await EmailOtpChallenge.updateOne({ _id: challenge._id }, { $set: { attempts: challenge.attempts } });
         throw ApiError.unauthorized("Invalid authentication code");
@@ -275,9 +280,14 @@ export class UserService {
       if (!user.twoFactorSecret) {
         throw ApiError.internal("2FA is enabled but secret is missing");
       }
-      const isValidOtp = authenticator.verify({ token: otp, secret: user.twoFactorSecret });
+      const secret = decryptTotpSecret(user.twoFactorSecret);
+      const isValidOtp = authenticator.verify({ token: otp, secret });
       if (!isValidOtp) {
         throw ApiError.unauthorized("Invalid authentication code");
+      }
+      if (!isTotpSecretEncrypted(user.twoFactorSecret)) {
+        user.twoFactorSecret = encryptTotpSecret(secret);
+        await user.save();
       }
     }
 
@@ -564,7 +574,7 @@ export class UserService {
     }
 
     const secret = authenticator.generateSecret();
-    user.twoFactorSecret = secret;
+    user.twoFactorSecret = encryptTotpSecret(secret);
     await user.save();
 
     const otpauth = authenticator.keyuri(user.email, "Shield", secret);
@@ -588,11 +598,15 @@ export class UserService {
       throw ApiError.badRequest("2FA setup not initialized");
     }
 
-    const isValid = authenticator.verify({ token: otp, secret: user.twoFactorSecret });
+    const secret = decryptTotpSecret(user.twoFactorSecret);
+    const isValid = authenticator.verify({ token: otp, secret });
     if (!isValid) {
       throw ApiError.unauthorized("Invalid authentication code");
     }
 
+    if (!isTotpSecretEncrypted(user.twoFactorSecret)) {
+      user.twoFactorSecret = encryptTotpSecret(secret);
+    }
     user.twoFactorEnabled = true;
     await user.save();
   }

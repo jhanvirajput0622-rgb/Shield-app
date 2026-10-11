@@ -27,7 +27,8 @@
     "production": {
       "distribution": "store",
       "channel": "production",
-      "autoIncrement": true
+      "autoIncrement": true,
+      "uploadSourceMaps": true
     }
   },
   "submit": {

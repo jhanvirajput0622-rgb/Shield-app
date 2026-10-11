@@ -26,21 +26,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [deviceKey, setDeviceKey] = useState<Uint8Array | null>(null);
 
   useEffect(() => {
-    // Load onboarding state, E2E encryption key, and silently rehydrate auth
-    Promise.all([
-      AsyncStorage.getItem("@shield/onboarded"),
-      getDeviceKey(),
-      rehydrate(), // attempt silent sign-in from stored JWT
-    ])
-      .then(([onboarded, key]) => {
-        setHasOnboarded(onboarded === "true");
-        setDeviceKey(key);
-      })
-      .catch((err) => {
-        console.error("Failed to initialize app state:", err);
-        // Fallback so the app doesn't stay stuck on a blank screen
+    // Resolve UI initialization independently; auth/network failures must not
+    // leave onboarding state null and block the entire navigation tree.
+    void AsyncStorage.getItem("@shield/onboarded")
+      .then((onboarded) => setHasOnboarded(onboarded === "true"))
+      .catch((err: unknown) => {
+        console.error("Failed to load onboarding state:", err);
         setHasOnboarded(false);
       });
+
+    void getDeviceKey()
+      .then(setDeviceKey)
+      .catch((err: unknown) => {
+        console.error("Failed to load device encryption key:", err);
+        setDeviceKey(null);
+      });
+
+    void rehydrate().catch((err: unknown) => {
+      console.warn("Could not restore the previous session:", err);
+    });
   }, []);
 
   const completeOnboarding = useCallback(async () => {

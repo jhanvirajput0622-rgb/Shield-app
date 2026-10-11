@@ -388,14 +388,78 @@ export async function apiFetch<T = unknown>(
   }
 
   if (!response.ok) {
-    const message =
-      typeof data === "object" &&
-      data !== null &&
-      "error" in data &&
-      typeof (data as { error: { message: string } }).error.message === "string"
-        ? (data as { error: { message: string } }).error.message
-        : `HTTP ${response.status}`;
-    throw new ShieldApiError(response.status, data, message);
+    throw toShieldApiError(response.status, data);
+  }
+
+  return data as T;
+}
+
+/** Translate a parsed non-2xx body into a `ShieldApiError`. */
+function toShieldApiError(status: number, data: unknown): ShieldApiError {
+  const message =
+    typeof data === "object" &&
+    data !== null &&
+    "error" in data &&
+    typeof (data as { error: { message?: unknown } }).error?.message === "string"
+      ? (data as { error: { message: string } }).error.message
+      : `HTTP ${status}`;
+  return new ShieldApiError(status, data, message);
+}
+
+// ─── Expo Router API routes (same-origin) ─────────────────────────────────────
+
+interface ApiRouteOptions {
+  method?: HttpMethod;
+  body?: unknown;
+  /** Extra headers, e.g. an explicit Authorization bearer token. */
+  headers?: Record<string, string>;
+}
+
+/**
+ * Call an Expo Router API route (`app/**‍+api.ts`) on the app's own origin.
+ *
+ * Unlike `apiFetch`, this does NOT prefix `getBaseUrl()` (the Express API
+ * origin). The path stays relative so:
+ *   - on web it resolves to the domain the app is served from, and
+ *   - on native, Expo Router's patched `fetch` routes it to the deployed server
+ *     origin from the `expo-router` plugin config (the dev server in dev).
+ *
+ * The server routes proxy to the Express backend and return the same
+ * `{ success, data }` envelope, so callers parse the result identically.
+ */
+export async function apiRouteFetch<T = unknown>(
+  path: string,
+  options: ApiRouteOptions = {}
+): Promise<T> {
+  const { method = "GET", body, headers = {} } = options;
+
+  let response: Response;
+  try {
+    response = await fetch(path, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        ...headers,
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : "network error";
+    throw new ShieldApiError(
+      0,
+      null,
+      `Unable to reach the Shield server route (${path}): ${detail}`
+    );
+  }
+
+  const contentType = response.headers.get("content-type") ?? "";
+  const data: unknown = contentType.includes("application/json")
+    ? await response.json().catch(() => null)
+    : await response.text();
+
+  if (!response.ok) {
+    throw toShieldApiError(response.status, data);
   }
 
   return data as T;

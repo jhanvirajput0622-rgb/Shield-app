@@ -15,4 +15,11 @@ export const registerDeviceSchema = z.object({
   }),
 });
 
+export const pushTokenSchema = z.object({
+  body: z.object({
+    token: z.string().trim().min(1).max(4096),
+    platform: z.enum(["iOS", "Android"]),
+  }),
+});
+
 export type RegisterDeviceBody = z.infer<typeof registerDeviceSchema>["body"];

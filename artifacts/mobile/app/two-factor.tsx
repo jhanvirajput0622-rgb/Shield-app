@@ -23,10 +23,13 @@ import * as Haptics from "expo-haptics";
 import colors from "@/constants/colors";
 import { useSetup2FA, useVerify2FA } from "@/hooks/useAuth";
 import { useAuthStore } from "@/store/authStore";
+import { useObserveInteractive } from "@/hooks/useObserveInteractive";
 
 const c = colors.dark;
 
 export default function TwoFactorSetupScreen() {
+  useObserveInteractive();
+
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user } = useAuthStore();

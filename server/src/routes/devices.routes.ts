@@ -2,7 +2,7 @@ import { Router } from "express";
 import { devicesController } from "../controllers/devices.controller";
 import { validate } from "../middleware/validate.middleware";
 import { authenticate } from "../middleware/auth.middleware";
-import { registerDeviceSchema } from "../validators/devices.validator";
+import { pushTokenSchema, registerDeviceSchema } from "../validators/devices.validator";
 import { asyncHandler } from "../utils/asyncHandler";
 
 const router = Router();
@@ -18,6 +18,12 @@ router.post(
   "/",
   validate(registerDeviceSchema),
   asyncHandler(devicesController.registerDevice)
+);
+
+router.post(
+  "/push-token",
+  validate(pushTokenSchema),
+  asyncHandler(devicesController.registerPushToken)
 );
 
 // GET    /api/devices/:id

@@ -27,10 +27,13 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import colors from "@/constants/colors";
 import { useForgotPassword } from "@/hooks/useAuth";
+import { useObserveInteractive } from "@/hooks/useObserveInteractive";
 
 const c = colors.dark;
 
 export default function ForgotPasswordScreen() {
+  useObserveInteractive();
+
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [email, setEmail] = useState("");

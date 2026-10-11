@@ -81,6 +81,31 @@ export const devicesController = {
     res.status(201).json({ success: true, data: deviceView(device) });
   },
 
+  async registerPushToken(req: Request, res: Response): Promise<void> {
+    const { token, platform } = req.body as { token: string; platform: string };
+    const currentDevice = await Device.findOne({ userId: req.userId }).sort({ lastSeenAt: -1 });
+
+    if (currentDevice) {
+      await Device.findOneAndUpdate(
+        { _id: currentDevice._id, userId: req.userId },
+        { $set: { pushToken: token, pushTokenUpdatedAt: new Date(), platform } },
+        { new: true }
+      );
+    } else {
+      await Device.create({
+        userId: req.userId,
+        deviceName: "Shield Mobile",
+        platform,
+        status: "online",
+        lastSeenAt: new Date(),
+        pushToken: token,
+        pushTokenUpdatedAt: new Date(),
+      });
+    }
+
+    res.status(200).json({ success: true });
+  },
+
   // ── GET /api/devices/:id ──────────────────────────────────────────────────
   async getDevice(req: Request, res: Response): Promise<void> {
     const device = await Device.findOne({

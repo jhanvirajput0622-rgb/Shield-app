@@ -1,6 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import {
   apiFetch,
+  apiRouteFetch,
   storeToken,
   clearToken,
   storeRefreshToken,
@@ -83,10 +84,9 @@ export function useRegister() {
       /** Used by the server to assert password === confirmPassword */
       confirmPassword?: string;
     }) => {
-      const res = await apiFetch<AuthResponse>("/api/auth/register", {
+      const res = await apiRouteFetch<AuthResponse>("/api/auth/register", {
         method: "POST",
         body: input,
-        skipAuth: true,
       });
       await storeToken(res.data.accessToken ?? res.data.token);
       await storeRefreshToken(res.data.refreshToken);
@@ -99,10 +99,9 @@ export function useRegister() {
 export function useLogin() {
   return useMutation({
     mutationFn: async (input: { email: string; password: string; otp?: string; rememberMe?: boolean }) => {
-      const res = await apiFetch<AuthResponse>("/api/auth/login", {
+      const res = await apiRouteFetch<AuthResponse>("/api/auth/login", {
         method: "POST",
         body: { email: input.email, password: input.password, otp: input.otp },
-        skipAuth: true,
       });
       await storeToken(res.data.accessToken ?? res.data.token);
       await storeRefreshToken(res.data.refreshToken);

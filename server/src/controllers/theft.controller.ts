@@ -88,6 +88,7 @@ export const theftController = {
       deviceId: device._id,
       command: "locate",
       status: "pending",
+      issuedAt: new Date(),
     });
 
     res.json({
@@ -121,6 +122,7 @@ export const theftController = {
       command: "lock",
       message,
       status: "pending",
+      issuedAt: new Date(),
     });
 
     await securityEventService.emit(
@@ -169,6 +171,7 @@ export const theftController = {
       deviceId: device._id,
       command: "wipe",
       status: "pending",
+      issuedAt: new Date(),
     });
 
     await securityEventService.emit(
@@ -211,9 +214,8 @@ export const theftController = {
         command: c.command,
         message: c.message,
         status: c.status,
-        // `issuedAt` and `expiresAt` are optional in db/schema.ts and are left
-        // unset by 3 of the 4 creation paths, so an unconditional .toISOString()
-        // threw a TypeError and 500'd the whole listing.
+        // Older commands may not have an issue timestamp, so keep serialization
+        // tolerant while all new writes persist it.
         issuedAt: isoOrNull(c.issuedAt),
         acknowledgedAt: isoOrNull(c.acknowledgedAt),
         completedAt: isoOrNull(c.completedAt),

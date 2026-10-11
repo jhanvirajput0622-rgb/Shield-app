@@ -15,6 +15,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import colors from "@/constants/colors";
 import { useApp } from "@/context/AppContext";
+import { useObserveInteractive } from "@/hooks/useObserveInteractive";
 
 const SLIDES = [
   {
@@ -48,6 +49,8 @@ const SLIDES = [
 ];
 
 export default function OnboardingScreen() {
+  useObserveInteractive();
+
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const router = useRouter();

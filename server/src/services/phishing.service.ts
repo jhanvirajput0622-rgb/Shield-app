@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import { PhishingCheck, IPhishingCheck, PhishingVerdict } from "../models/PhishingCheck";
 import { SecurityEvent } from "../models/SecurityEvent";
 import { Device } from "../models/Device";
+import { z } from "zod";
+import { logger } from "../utils/logger";
 
 // ─── Threat intelligence heuristic ───────────────────────────────────────────
 // Replace / extend this with a real threat-intel API (e.g. Google Safe Browsing,
@@ -16,11 +18,66 @@ const SUSPICIOUS_KEYWORDS = [
   "login.", "signin.", "secure-", "verify-", "update-account",
 ];
 
-function analyzeUrl(urlHash: string, domain: string): {
+const virusTotalResponseSchema = z.object({
+  data: z.object({
+    attributes: z.object({
+      last_analysis_stats: z.object({
+        malicious: z.number().int().nonnegative(),
+        suspicious: z.number().int().nonnegative(),
+      }).passthrough(),
+    }),
+  }),
+});
+
+const HOSTNAME_PATTERN = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i;
+
+async function lookupDomainReputation(domain: string): Promise<PhishingVerdict | null> {
+  const apiKey = process.env.VIRUSTOTAL_API_KEY;
+  const normalizedDomain = domain.toLowerCase().replace(/\.$/, "");
+  if (!apiKey || !HOSTNAME_PATTERN.test(normalizedDomain)) return null;
+
+  try {
+    const response = await fetch(
+      `https://www.virustotal.com/api/v3/domains/${encodeURIComponent(normalizedDomain)}`,
+      {
+        headers: { "x-apikey": apiKey },
+        signal: AbortSignal.timeout(3500),
+      }
+    );
+    if (!response.ok) return null;
+
+    const parsed = virusTotalResponseSchema.safeParse(await response.json());
+    if (!parsed.success) {
+      logger.warn("VirusTotal returned an unexpected domain reputation response");
+      return null;
+    }
+
+    const stats = parsed.data.data.attributes.last_analysis_stats;
+    if (stats.malicious > 0) return "malicious";
+    if (stats.suspicious > 0) return "suspicious";
+    return "safe";
+  } catch (error) {
+    logger.warn(`VirusTotal domain lookup failed: ${error instanceof Error ? error.message : String(error)}`);
+    return null;
+  }
+}
+
+async function analyzeUrl(urlHash: string, domain: string): Promise<{
   verdict: PhishingVerdict;
   threatType: string | null;
-} {
+}> {
   const d = domain.toLowerCase();
+
+  // Only the hostname and existing short hash are used; the original URL is
+  // never sent to the external threat-intelligence provider.
+  const reputation = await lookupDomainReputation(d);
+  if (reputation === "malicious") {
+    return { verdict: "malicious", threatType: "PHISHING" };
+  }
+  if (reputation === "suspicious") {
+    return { verdict: "suspicious", threatType: "SOCIAL_ENGINEERING" };
+  }
+  if (reputation === "safe") return { verdict: "safe", threatType: null };
 
   for (const keyword of MALICIOUS_KEYWORDS) {
     if (d.includes(keyword)) {
@@ -34,9 +91,8 @@ function analyzeUrl(urlHash: string, domain: string): {
     }
   }
 
-  // Known-safe TLDs heuristic — real implementation would query a threat DB
-  // using only the urlHash (not the full URL) to preserve privacy
-  void urlHash; // reserved for hash-based lookup
+  // Retain the URL hash for future privacy-preserving reputation cache lookups.
+  void urlHash;
 
   return { verdict: "safe", threatType: null };
 }
@@ -51,7 +107,7 @@ export class PhishingService {
     encryptedUrl: string,
     source: IPhishingCheck["source"]
   ): Promise<IPhishingCheck> {
-    const { verdict, threatType } = analyzeUrl(urlHash, domain);
+    const { verdict, threatType } = await analyzeUrl(urlHash, domain);
 
     // Get primary device for the user (nullable — OK)
     const device = await Device.findOne({ userId }).sort({ lastSeenAt: -1 });

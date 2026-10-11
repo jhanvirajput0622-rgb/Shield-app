@@ -12,12 +12,23 @@ import {
   Inter_700Bold,
   useFonts,
 } from "@expo-google-fonts/inter";
-import { Stack } from "expo-router";
+import { Stack, useRootNavigationState, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { setBaseUrl, setAuthTokenGetter } from "@workspace/api-client-react";
 import { AppProvider } from "@/context/AppContext";
+import { useApp } from "@/context/AppContext";
 import colors from "@/constants/colors";
+import { Observe, useObserve, wrapObserveRoot } from "@/lib/easObserve";
 import { getBaseUrl, getToken } from "@/lib/apiClient";
+import { useAuthStore } from "@/store/authStore";
+
+Observe?.configure({
+  integrations: {
+    "expo-router": {
+      filteredParams: ["email", "token", "code"],
+    },
+  },
+});
 
 const apiBase = getBaseUrl();
 
@@ -36,6 +47,13 @@ const queryClient = new QueryClient({
 });
 
 const c = colors.dark;
+const PUBLIC_ROUTES = new Set([
+  "login",
+  "register",
+  "forgot-password",
+  "reset-password",
+  "onboarding",
+]);
 
 const HEADER_OPTS = {
   headerStyle: { backgroundColor: c.background },
@@ -46,8 +64,10 @@ const HEADER_OPTS = {
 
 function RootLayoutNav() {
   return (
-    <Stack>
+    <Stack initialRouteName="(tabs)">
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="login" options={{ headerShown: false }} />
+        <Stack.Screen name="register" options={{ headerShown: false }} />
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />
         <Stack.Screen
           name="forgot-password"
@@ -73,7 +93,55 @@ function RootLayoutNav() {
   );
 }
 
-export default function RootLayout() {
+function RootLayoutContent() {
+  const { hasOnboarded } = useApp();
+  const { markInteractive } = useObserve();
+  const router = useRouter();
+  const segments = useSegments();
+  const navigationState = useRootNavigationState();
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuthStore();
+
+  useEffect(() => {
+    void SplashScreen.hideAsync();
+  }, []);
+
+  useEffect(() => {
+    if (hasOnboarded !== null) {
+      markInteractive();
+    }
+  }, [hasOnboarded, markInteractive]);
+
+  useEffect(() => {
+    if (!navigationState?.key || hasOnboarded === null || isAuthLoading) return;
+
+    const currentRoute = segments[0];
+    if (!isAuthenticated && !PUBLIC_ROUTES.has(currentRoute ?? "")) {
+      router.replace("/login");
+      return;
+    }
+
+    if (isAuthenticated && (currentRoute === "login" || currentRoute === "register")) {
+      router.replace(hasOnboarded ? "/(tabs)" : "/onboarding");
+    }
+  }, [
+    hasOnboarded,
+    isAuthenticated,
+    isAuthLoading,
+    navigationState?.key,
+    router,
+    segments,
+  ]);
+
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <KeyboardProviderCompat>
+        <RootLayoutNav />
+      </KeyboardProviderCompat>
+    </GestureHandlerRootView>
+  );
+}
+
+function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
@@ -81,27 +149,19 @@ export default function RootLayout() {
     Inter_700Bold,
   });
 
-  useEffect(() => {
-    if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded, fontError]);
-
   if (!fontsLoaded && !fontError) return null;
 
   return (
     <SafeAreaProvider>
-      <ErrorBoundary>
+      <ErrorBoundary onError={(error) => Observe?.reportError(error)}>
         <QueryClientProvider client={queryClient}>
           <AppProvider>
-            <GestureHandlerRootView style={{ flex: 1 }}>
-              <KeyboardProviderCompat>
-                <RootLayoutNav />
-              </KeyboardProviderCompat>
-            </GestureHandlerRootView>
+            <RootLayoutContent />
           </AppProvider>
         </QueryClientProvider>
       </ErrorBoundary>
     </SafeAreaProvider>
   );
 }
+
+export default wrapObserveRoot(RootLayout);

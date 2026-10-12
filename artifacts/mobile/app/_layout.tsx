@@ -20,7 +20,6 @@ import { useApp } from "@/context/AppContext";
 import colors from "@/constants/colors";
 import { Observe, useObserve, wrapObserveRoot } from "@/lib/easObserve";
 import { getBaseUrl, getToken } from "@/lib/apiClient";
-import { useAuthStore } from "@/store/authStore";
 
 Observe?.configure({
   integrations: {
@@ -47,12 +46,12 @@ const queryClient = new QueryClient({
 });
 
 const c = colors.dark;
-const PUBLIC_ROUTES = new Set([
+const AUTH_ROUTES = new Set([
   "login",
   "register",
   "forgot-password",
   "reset-password",
-  "onboarding",
+  "two-factor",
 ]);
 
 const HEADER_OPTS = {
@@ -99,7 +98,6 @@ function RootLayoutContent() {
   const router = useRouter();
   const segments = useSegments();
   const navigationState = useRootNavigationState();
-  const { isAuthenticated, isLoading: isAuthLoading } = useAuthStore();
 
   useEffect(() => {
     void SplashScreen.hideAsync();
@@ -112,21 +110,14 @@ function RootLayoutContent() {
   }, [hasOnboarded, markInteractive]);
 
   useEffect(() => {
-    if (!navigationState?.key || hasOnboarded === null || isAuthLoading) return;
+    if (!navigationState?.key || hasOnboarded === null) return;
 
     const currentRoute = segments[0];
-    if (!isAuthenticated && !PUBLIC_ROUTES.has(currentRoute ?? "")) {
-      router.replace("/login");
-      return;
-    }
-
-    if (isAuthenticated && (currentRoute === "login" || currentRoute === "register")) {
+    if (AUTH_ROUTES.has(currentRoute ?? "")) {
       router.replace(hasOnboarded ? "/(tabs)" : "/onboarding");
     }
   }, [
     hasOnboarded,
-    isAuthenticated,
-    isAuthLoading,
     navigationState?.key,
     router,
     segments,

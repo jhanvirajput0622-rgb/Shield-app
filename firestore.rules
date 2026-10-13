@@ -1,0 +1,227 @@
+rules_version = '2';
+
+// Shield — Firestore security rules.
+//
+// This file replaces the permissive Firebase starter template that shipped in
+// `firestore.rules` ("allow read, write if request.time < ..."), which left the
+// whole database world-readable and world-writable to anyone holding the web
+// config. That config is committed (google-services.json, GoogleService-Info.plist,
+// artifacts/mobile/.env), so the exposure was total. The spec for what follows is
+// encoded in server/test/security-rules.e2e.test.ts.
+//
+// ── Two zones ────────────────────────────────────────────────────────────────
+//
+//   1. The server-owned schema — the 25 collections in server/src/db/schema.ts
+//      (`users`, `devices`, `notifications`, …). Denied to every client,
+//      authenticated or not. All access goes through the Express API using the
+//      Admin SDK, which bypasses rules by design. Clients must not reach this
+//      data directly: that would skip every check in
+//      server/src/middleware/auth.middleware.ts and every validator.
+//
+//   2. The client-owned schema — the `mobile*` collections modelled in
+//      artifacts/mobile/lib/firestore/schema.ts. Reachable by clients, but only
+//      for documents the caller owns, keyed on `request.auth.uid`.
+//
+// ── Why the deny-all comes first, and why that still works ───────────────────
+//
+// Firestore rules are not filters and they do not cascade: when several `match`
+// blocks match a path, every one is evaluated and the operation proceeds if ANY
+// of them allows it. So the catch-all `allow ... if false` below is a *floor*,
+// not a ceiling — each specific block below re-opens exactly the paths it owns.
+// Nothing is accidentally widened, because anything not named here stays denied.
+//
+// ── Identity ─────────────────────────────────────────────────────────────────
+//
+// `request.auth.uid` is the Firebase Auth uid. That value is deliberately the
+// server's own user id: POST /api/auth/firebase-token mints a custom token whose
+// uid is `req.userId` (see server/src/services/firebaseAuth.service.ts), so the
+// two identity spaces are the same value and `userId == request.auth.uid` holds
+// for a user who registered through either path.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Helpers ─────────────────────────────────────────────────────────────
+
+    /**
+     * True when the caller has a `mobileAdmins/{uid}` document.
+     *
+     * Mirrors `isAdmin()` in artifacts/mobile/lib/firestore/services/context.ts.
+     * That client-side copy only hides UI affordances; this is the boundary.
+     * `exists()` is evaluated with full privileges, so it works even though the
+     * `mobileAdmins` block below only lets a caller read their *own* admin doc.
+     */
+    function isAdmin() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/mobileAdmins/$(request.auth.uid));
+    }
+
+    /**
+     * True when the caller is the owner of a document that carries `userId`.
+     *
+     * `resource` covers read/update/delete; `request.resource` covers create.
+     * Both are checked on update so a caller cannot reassign a document to
+     * someone else by writing a new `userId`.
+     */
+    function ownsByUserId() {
+      return request.auth != null
+        && resource != null
+        && resource.data.userId == request.auth.uid;
+    }
+
+    function createsOwnByUserId() {
+      return request.auth != null
+        && request.resource != null
+        && request.resource.data.userId == request.auth.uid;
+    }
+
+    function updatesOwnByUserId() {
+      return request.auth != null
+        && resource != null
+        && request.resource != null
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid;
+    }
+
+    // ─── Zone 1: server-owned schema ─────────────────────────────────────────
+    //
+    // Denied unconditionally. The Admin SDK is unaffected, so the Express API
+    // keeps full access — that is the only supported path to these collections.
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ─── Zone 2a: client-owned, server-only companions ───────────────────────
+    //
+    // Denied even to an authenticated owner, so these are not merely
+    // owner-scoped — they are unreachable from any client.
+    //
+    //   mobileCredentials    — mirrors the password hash for server-side use.
+    //   mobileUserEmails     — uniqueness ledger; readable, a caller could
+    //                           enumerate which addresses are registered.
+    //   mobileAdminEmails    — same, for admin accounts.
+    //
+    // SERVER_ONLY in artifacts/mobile/lib/firestore/schema.ts mirrors this set in
+    // client code as defence in depth; these rules are the real boundary.
+
+    match /mobileCredentials/{uid} {
+      allow read, write: if false;
+    }
+
+    match /mobileUserEmails/{uid} {
+      allow read, write: if false;
+    }
+
+    match /mobileAdminEmails/{uid} {
+      allow read, write: if false;
+    }
+
+    // ─── Zone 2b: client-owned, keyed by uid as the document ID ───────────────
+
+    /**
+     * The caller's own profile. Keyed by uid, so there is no `userId` field to
+     * compare — the document ID *is* the ownership claim.
+     *
+     * `listUsersManagedBy(adminId)` in lib/firestore/services/users.ts queries
+     * on the `adminId` field, so an admin is also allowed to read the accounts
+     * they manage.
+     */
+    match /mobileUsers/{uid} {
+      allow get, list: if request.auth != null
+        && (request.auth.uid == uid || (isAdmin() && resource.data.adminId == request.auth.uid));
+      allow create, update: if request.auth != null
+        && (request.auth.uid == uid || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    /** Protection settings, one document per user, keyed by uid. */
+    match /mobileProtectionSettings/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    /**
+     * Admin flag documents. A caller may read their own (that is how the UI
+     * decides what to show); writing one is what promotes an account, so it is
+     * never self-grantable and only an existing admin may do it.
+     */
+    match /mobileAdmins/{uid} {
+      allow get: if request.auth != null && request.auth.uid == uid;
+      allow list: if false;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ─── Zone 2c: client-owned, generated IDs, owned via `userId` ────────────
+    //
+    // Every collection below is stamped with `userId` by
+    // requireUserId() on write and queried with a matching `where` filter, which
+    // is what lets a `list` satisfy `ownsByUserId()`: Firestore evaluates rules
+    // against the query, so a query that does not constrain `userId` to the
+    // caller is refused.
+
+    match /mobileDevices/{id} {
+      allow read: if ownsByUserId();
+      allow create: if createsOwnByUserId();
+      allow update: if updatesOwnByUserId();
+      allow delete: if ownsByUserId();
+    }
+
+    match /mobileAntiThefts/{id} {
+      allow read: if ownsByUserId();
+      allow create: if createsOwnByUserId();
+      allow update: if updatesOwnByUserId();
+      allow delete: if ownsByUserId();
+    }
+
+    match /mobilePhishingDetections/{id} {
+      allow read: if ownsByUserId();
+      allow create: if createsOwnByUserId();
+      allow update: if updatesOwnByUserId();
+      allow delete: if ownsByUserId();
+    }
+
+    match /mobileVpnConnections/{id} {
+      allow read: if ownsByUserId();
+      allow create: if createsOwnByUserId();
+      allow update: if updatesOwnByUserId();
+      allow delete: if ownsByUserId();
+    }
+
+    match /mobileAppPermissions/{id} {
+      allow read: if ownsByUserId();
+      allow create: if createsOwnByUserId();
+      allow update: if updatesOwnByUserId();
+      allow delete: if ownsByUserId();
+    }
+
+    match /mobileSecurityLogs/{id} {
+      allow read: if ownsByUserId();
+      allow create: if createsOwnByUserId();
+      allow update: if updatesOwnByUserId();
+      allow delete: if ownsByUserId();
+    }
+
+    match /mobileAppSessions/{id} {
+      allow read: if ownsByUserId();
+      allow create: if createsOwnByUserId();
+      allow update: if updatesOwnByUserId();
+      allow delete: if ownsByUserId();
+    }
+
+    // ─── Zone 2d: admin audit trail ──────────────────────────────────────────
+    //
+    // Append-only and scoped to admins, not to the affected user. The service
+    // (lib/firestore/services/auditEvents.ts) exposes no update or delete, and
+    // the rules refuse both so a compromised client cannot rewrite history.
+    // `adminId`, not `userId`, is the owner: the affected user is recorded in
+    // `userId` and is deliberately not a grant.
+
+    match /mobileAuditEvents/{id} {
+      allow read: if isAdmin()
+        || (request.auth != null && resource.data.adminId == request.auth.uid);
+      allow create: if request.auth != null
+        && request.resource.data.adminId == request.auth.uid;
+      allow update, delete: if false;
+    }
+  }
+}

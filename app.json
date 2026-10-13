@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "Shield App",
+    "slug": "shield-app",
+    "owner": "jbaraiya2204",
+    "extra": {
+      "eas": {
+        "projectId": "f56d6edb-b361-4c89-84d6-aace6fdc34a9"
+      }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/f56d6edb-b361-4c89-84d6-aace6fdc34a9"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "android": {
+      "package": "com.jbaraiya2204.shieldapp",
+      "googleServicesFile": "./google-services.json"
+    },
+    "ios": {
+      "bundleIdentifier": "com.jbaraiya2204.shieldapp",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    }
+  }
+}

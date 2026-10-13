@@ -1,0 +1,9 @@
+node_modules/
+.expo/
+server/
+dist/
+*.tsbuildinfo
+*.log
+.env
+.env.*
+qr.html

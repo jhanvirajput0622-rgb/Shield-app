@@ -1,0 +1,80 @@
+mutation SeedData @transaction {
+  user_insertMany(data: [
+    {
+      id: "77777777-0000-4000-a000-000000000001",
+      displayName: "Alice Dev",
+      email: "alice@example.com",
+      role: "admin"
+    },
+    {
+      id: "77777777-0000-4000-a000-000000000002",
+      displayName: "Bob Manager",
+      email: "bob@example.com",
+      role: "manager"
+    },
+    {
+      id: "77777777-0000-4000-a000-000000000003",
+      displayName: "Charlie User",
+      email: "charlie@example.com",
+      role: "member"
+    }
+  ])
+  project_insertMany(data: [
+    {
+      id: "88888888-1111-4000-b000-000000000001",
+      name: "Alpha Project",
+      ownerId: "77777777-0000-4000-a000-000000000001",
+      description: "First project"
+    },
+    {
+      id: "88888888-1111-4000-b000-000000000002",
+      name: "Beta Project",
+      ownerId: "77777777-0000-4000-a000-000000000002",
+      description: "Second project"
+    }
+  ])
+  milestone_insertMany(data: [
+    {
+      id: "99999999-2222-4000-c000-000000000001",
+      title: "Alpha Milestone 1",
+      projectId: "88888888-1111-4000-b000-000000000001",
+      isCompleted: false
+    },
+    {
+      id: "99999999-2222-4000-c000-000000000002",
+      title: "Beta Milestone 1",
+      projectId: "88888888-1111-4000-b000-000000000002",
+      isCompleted: true
+    }
+  ])
+  task_insertMany(data: [
+    {
+      id: "66666666-3333-4000-d000-000000000001",
+      title: "Setup Database",
+      status: "In Progress",
+      projectId: "88888888-1111-4000-b000-000000000001",
+      milestoneId: "99999999-2222-4000-c000-000000000001",
+      assignedToId: "77777777-0000-4000-a000-000000000003"
+    },
+    {
+      id: "66666666-3333-4000-d000-000000000002",
+      title: "UI Design",
+      status: "Done",
+      projectId: "88888888-1111-4000-b000-000000000002",
+      milestoneId: "99999999-2222-4000-c000-000000000002",
+      assignedToId: "77777777-0000-4000-a000-000000000002"
+    }
+  ])
+  comment_insertMany(data: [
+    {
+      content: "Great progress!",
+      taskId: "66666666-3333-4000-d000-000000000001",
+      authorId: "77777777-0000-4000-a000-000000000001"
+    },
+    {
+      content: "Needs more padding.",
+      taskId: "66666666-3333-4000-d000-000000000002",
+      authorId: "77777777-0000-4000-a000-000000000003"
+    }
+  ])
+}

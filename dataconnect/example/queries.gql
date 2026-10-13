@@ -1,0 +1,87 @@
+# ==========================================
+# MUTATIONS
+# ==========================================
+
+mutation InsertUser(
+  $name: String!,
+  $phone: String
+) @auth(level: USER) {
+  user_insert(data: {
+    firebaseUid_expr: "auth.uid",
+    name: $name,
+    email_expr: "auth.token.email",
+    phone: $phone,
+    role: "user"
+  })
+}
+
+mutation InsertSecurityLog(
+  $userId: UUID!,
+  $eventType: String!,
+  $description: String,
+  $severity: String!,
+  $status: String!
+) @auth(level: NO_ACCESS) {
+  securityLog_insert(data: {
+    user: { id: $userId },
+    eventType: $eventType,
+    description: $description,
+    severity: $severity,
+    status: $status
+  })
+}
+
+mutation InsertDevice(
+  $userId: UUID!,
+  $deviceName: String!,
+  $osType: String!,
+  $deviceModel: String!,
+  $deviceIdHash: String!
+) @auth(level: NO_ACCESS) {
+  device_insert(data: {
+    user: { id: $userId },
+    deviceName: $deviceName,
+    osType: $osType,
+    deviceModel: $deviceModel,
+    deviceIdHash: $deviceIdHash
+  })
+}
+
+# ==========================================
+# QUERIES
+# ==========================================
+
+query GetUserById($id: UUID!) @auth(level: USER) {
+  users(where: { id: { eq: $id }, firebaseUid: { eq_expr: "auth.uid" } }) {
+    id
+    name
+    email
+    phone
+    role
+    isActive
+    createdAt
+    lastLogin
+  }
+}
+
+query ListUsers @auth(level: NO_ACCESS) {
+  users {
+    id
+    name
+    email
+    role
+    isActive
+    createdAt
+  }
+}
+
+query ListSecurityLogsForUser @auth(level: USER) {
+  securityLogs(where: { user: { firebaseUid: { eq_expr: "auth.uid" } } }) {
+    id
+    eventType
+    description
+    severity
+    status
+    timestamp
+  }
+}

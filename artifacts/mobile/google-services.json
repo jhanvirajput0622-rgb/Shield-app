@@ -1,0 +1,119 @@
+{
+  "project_info": {
+    "project_number": "637825924445",
+    "firebase_url": "https://shield-419e1-default-rtdb.firebaseio.com",
+    "project_id": "shield-419e1",
+    "storage_bucket": "shield-419e1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:637825924445:android:3bfebe84d43961298e7cb4",
+        "android_client_info": {
+          "package_name": "com.android.application"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "637825924445-4b9q9tf7hm3i5735hba7q25soknvn48v.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDTNPxDTFRzn6KxAAM0c8hVRoRERUb01nI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "637825924445-4b9q9tf7hm3i5735hba7q25soknvn48v.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "637825924445-b2i45tj9aqms4do80epb0vbd8krirlva.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.jbaraiya2204.shield"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:637825924445:android:e816fee82cfab4f08e7cb4",
+        "android_client_info": {
+          "package_name": "com.jbaraiya2204.mobile"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "637825924445-4b9q9tf7hm3i5735hba7q25soknvn48v.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDTNPxDTFRzn6KxAAM0c8hVRoRERUb01nI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "637825924445-4b9q9tf7hm3i5735hba7q25soknvn48v.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "637825924445-b2i45tj9aqms4do80epb0vbd8krirlva.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.jbaraiya2204.shield"
+              }
+            }
+          ]
+          }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:637825924445:android:020670de050f36238e7cb4",
+        "android_client_info": {
+          "package_name": "com.jbaraiya2204.shieldapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "637825924445-4b9q9tf7hm3i5735hba7q25soknvn48v.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDTNPxDTFRzn6KxAAM0c8hVRoRERUb01nI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "637825924445-4b9q9tf7hm3i5735hba7q25soknvn48v.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "637825924445-b2i45tj9aqms4do80epb0vbd8krirlva.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.jbaraiya2204.shield"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

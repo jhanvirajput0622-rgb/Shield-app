@@ -58,6 +58,7 @@
     "zod-validation-error": "^3.4.0"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.117.3",
     "expo-auth-session": "~57.0.14",
     "expo-camera": "^57.0.6",
     "expo-constants": "~57.0.21",
@@ -68,6 +69,7 @@
     "expo-observe": "~57.0.25",
     "expo-secure-store": "^57.0.4",
     "expo-server": "~57.0.3",
+    "expo-sqlite": "^57.0.4",
     "expo-updates": "~57.0.25",
     "firebase": "^12.19.0",
     "react-native-get-random-values": "^1.11.0",

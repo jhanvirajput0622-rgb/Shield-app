@@ -56,6 +56,7 @@
       "expo-web-browser",
       "expo-dev-client",
       "expo-updates",
+      "expo-sqlite",
       [
         "expo-camera",
         {
